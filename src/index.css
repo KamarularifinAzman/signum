@@ -1,3 +1,22 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Add to your CSS file */
+.pdf-container {
+  overflow: auto;
+}
+
+.pdf-container canvas {
+  display: block;
+}
+
+/* Ensure the PDF viewer container allows zooming */
+.pdf-viewer-container > div {
+  min-height: 0;
+}
+
+/* Make sure the flex container allows children to grow */
+.flex-1 {
+  min-height: 0;
+}

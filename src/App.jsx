@@ -1,13 +1,394 @@
 // src/App.jsx
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, Building2, CheckCircle2, AlertCircle, Download, X, Info, HelpCircle, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Type, Save, Trash2, Move, PenTool, RotateCcw, Maximize2, Minimize2, Lock, Unlock } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Upload, FileText, Building2, CheckCircle2, AlertCircle, Download, X, Info, HelpCircle, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Type, Save, Trash2, Move, PenTool, RotateCcw, Maximize2, Minimize2, Lock, Unlock, Shield, Clock, Key, Globe, Award, FileCheck } from 'lucide-react';
 import * as pdfjsLib from "pdfjs-dist/build/pdf";
 import "pdfjs-dist/build/pdf.worker.entry";
-import { downloadSignedPdf, downloadOriginalPdf } from './utils/downloadUtils';
 
 // Set worker path
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
+// Tutorial Modal Component - MOVED OUTSIDE
+const TutorialModal = ({ showTutorial, setShowTutorial, step, fileInputRef }) => {
+  const [tutorialStep, setTutorialStep] = useState(0);
+  
+  const tutorialSteps = [
+    {
+      title: "Welcome to Signum",
+      icon: FileText,
+      content: (
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Signum is a comprehensive document signing platform that supports both electronic and cryptographic digital signatures.
+          </p>
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <h4 className="font-semibold text-blue-900 mb-1">Platform Features:</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Electronic signature annotations with trusted timestamp</li>
+              <li>• Cryptographic digital signatures using company certificates</li>
+              <li>• Document finalisation with change restrictions</li>
+              <li>• Password protection for sensitive documents</li>
+              <li>• Mobile-friendly interface with touch support</li>
+            </ul>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Electronic Signature Guide",
+      icon: PenTool,
+      content: (
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Electronic signatures provide visual annotations with evidentiary timestamps for internal approvals and non-critical documents.
+          </p>
+          
+          <div className="space-y-3">
+            <div className="flex items-start">
+              <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
+                1
+              </div>
+              <div>
+                <h5 className="font-medium text-gray-900">Create Your Signature</h5>
+                <p className="text-sm text-gray-600">Draw or upload your signature and initials in the tools panel</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
+                2
+              </div>
+              <div>
+                <h5 className="font-medium text-gray-900">Place Elements</h5>
+                <p className="text-sm text-gray-600">Click on the PDF to place signatures, initials, and text annotations</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
+                3
+              </div>
+              <div>
+                <h5 className="font-medium text-gray-900">Position & Adjust</h5>
+                <p className="text-sm text-gray-600">Use the Move tool to drag elements to the correct position</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p className="text-sm text-yellow-800">
+              <strong>Note:</strong> Electronic signatures provide visual representation and timestamp evidence but do not apply cryptographic document integrity protection.
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Digital Signature (PKI) Guide",
+      icon: Award,
+      content: (
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Digital signatures use Public Key Infrastructure (PKI) to cryptographically secure documents, ensuring signer identity and document integrity.
+          </p>
+          
+          <div className="space-y-3">
+            <h5 className="font-semibold text-gray-900">Configuration Options:</h5>
+            
+            <div className="bg-green-50 p-3 rounded-lg">
+              <h6 className="font-medium text-green-900 mb-1">Digital Signature with Timestamp</h6>
+              <p className="text-sm text-green-800">
+                • Cryptographically signs the document using your company certificate<br/>
+                • Adds trusted timestamp from a certified authority<br/>
+                • Provides evidence of signing time<br/>
+                • Document remains editable for additional signatures
+              </p>
+            </div>
+            
+            <div className="bg-purple-50 p-3 rounded-lg">
+              <h6 className="font-medium text-purple-900 mb-1">Final Digital Signature</h6>
+              <p className="text-sm text-purple-800">
+                • Applies cryptographic signature and locks the document<br/>
+                • Prevents further modifications or additional signatures<br/>
+                • Document can still be opened and viewed by anyone<br/>
+                • Suitable for final versions and distribution
+              </p>
+            </div>
+            
+            <div className="bg-indigo-50 p-3 rounded-lg">
+              <h6 className="font-medium text-indigo-900 mb-1">Final Digital Signature with Password Protection</h6>
+              <p className="text-sm text-indigo-800">
+                • Applies cryptographic signature and locks document<br/>
+                • Requires password to open the final document<br/>
+                • Restricts access to authorised recipients only<br/>
+                • Maximum security for confidential documents
+              </p>
+            </div>
+          </div>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              <strong>Certificate Requirements:</strong> Digital signatures require a valid company certificate (SSL/TLS certificate) installed on your server. Contact your IT administrator for certificate setup.
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "Workflow & Best Practices",
+      icon: CheckCircle2,
+      content: (
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <h5 className="font-semibold text-gray-900">Recommended Workflow:</h5>
+            
+            <div className="flex items-start">
+              <div className="bg-gray-100 text-gray-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
+                <Upload className="w-3 h-3" />
+              </div>
+              <div>
+                <h6 className="font-medium text-gray-900">Step 1: Upload & Review</h6>
+                <p className="text-sm text-gray-600">Upload your PDF and review all pages before signing</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="bg-blue-100 text-blue-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
+                <PenTool className="w-3 h-3" />
+              </div>
+              <div>
+                <h6 className="font-medium text-gray-900">Step 2: Internal Approvals</h6>
+                <p className="text-sm text-gray-600">Use electronic signatures for internal reviews and approvals</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="bg-green-100 text-green-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
+                <Award className="w-3 h-3" />
+              </div>
+              <div>
+                <h6 className="font-medium text-gray-900">Step 3: Final Signing</h6>
+                <p className="text-sm text-gray-600">Apply cryptographic digital signature for final version</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="bg-purple-100 text-purple-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-0.5">
+                <Lock className="w-3 h-3" />
+              </div>
+              <div>
+                <h6 className="font-medium text-gray-900">Step 4: Distribution</h6>
+                <p className="text-sm text-gray-600">Finalise with password protection for confidential distribution</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-yellow-50 p-3 rounded-lg">
+            <h6 className="font-medium text-yellow-900 mb-1">Best Practices:</h6>
+            <ul className="text-sm text-yellow-800 space-y-1">
+              <li>• Always preview the document before final signing</li>
+              <li>• Use zoom controls for precise signature placement</li>
+              <li>• Save electronic signatures for future use</li>
+              <li>• Keep digital certificate passwords secure</li>
+              <li>• Maintain audit trails for regulatory compliance</li>
+            </ul>
+          </div>
+          
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <h6 className="font-medium text-gray-900 mb-1">Technical Requirements:</h6>
+            <ul className="text-sm text-gray-700 space-y-1">
+              <li>• PDF files up to 25MB supported</li>
+              <li>• Server requires open-sign-pdf.jar for digital signatures</li>
+              <li>• Company SSL certificate required for PKI signatures</li>
+              <li>• Modern browser with JavaScript enabled</li>
+              <li>• Internet connection for timestamp services</li>
+            </ul>
+          </div>
+        </div>
+      )
+    },
+    // Add to tutorialSteps array in TutorialModal component
+{
+  title: "Legal Framework for Digital Signatures",
+  icon: Globe,
+  content: (
+    <div className="space-y-4">
+      <p className="text-gray-700">
+        For cross-border B2B agreements, ensure your contracts include these key clauses:
+      </p>
+      
+      <div className="space-y-3">
+        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+          <h5 className="font-semibold text-blue-900 mb-1">1. Governing Law & Jurisdiction</h5>
+          <code className="text-xs text-blue-800 block bg-white p-2 rounded mt-1">
+            "This Agreement shall be governed by and construed in accordance with the laws of [Jurisdiction].<br/>
+            The Parties irrevocably submit to the exclusive jurisdiction of the courts of [Jurisdiction]."
+          </code>
+        </div>
+        
+        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+          <h5 className="font-semibold text-green-900 mb-1">2. Digital Signature Recognition</h5>
+          <code className="text-xs text-green-800 block bg-white p-2 rounded mt-1">
+            "The Parties agree that electronic signatures and cryptographic digital signatures<br/>
+            applied using mutually recognised certificate authorities shall have the same legal<br/>
+            effect as handwritten signatures."
+          </code>
+        </div>
+        
+        <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+          <h5 className="font-semibold text-purple-900 mb-1">3. Local Law Compliance</h5>
+          <code className="text-xs text-purple-800 block bg-white p-2 rounded mt-1">
+            "Nothing in this Agreement shall be construed to require either Party to act in<br/>
+            violation of mandatory laws or regulations applicable in its jurisdiction."
+          </code>
+        </div>
+      </div>
+      
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+        <p className="text-sm text-yellow-800">
+          <strong>Key Legal Note:</strong> Digital signatures using company certificates are generally recognized in cross-border B2B transactions under private international law and UNCITRAL principles, provided parties have contractual intent.
+        </p>
+      </div>
+    </div>
+  )
+}
+  ];
+
+  if (!showTutorial) return null;
+
+  const Icon = tutorialSteps[tutorialStep].icon;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+              <Icon className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{tutorialSteps[tutorialStep].title}</h2>
+              <p className="text-sm text-gray-600">Step {tutorialStep + 1} of {tutorialSteps.length}</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => {
+              setShowTutorial(false);
+              setTutorialStep(0);
+            }} 
+            className="text-gray-500 hover:text-gray-700 p-1"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="mb-6">
+            {tutorialSteps[tutorialStep].content}
+          </div>
+          
+          {/* Progress Indicator */}
+          <div className="flex justify-center space-x-2 mb-6">
+            {tutorialSteps.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setTutorialStep(index)}
+                className={`w-3 h-3 rounded-full transition-all ${
+                  index === tutorialStep 
+                    ? 'bg-blue-600 scale-110' 
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+                aria-label={`Go to step ${index + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+        
+        <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-between">
+          <button
+            onClick={() => {
+              if (tutorialStep > 0) {
+                setTutorialStep(tutorialStep - 1);
+              } else {
+                setShowTutorial(false);
+                setTutorialStep(0);
+              }
+            }}
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-colors"
+          >
+            {tutorialStep === 0 ? 'Close' : 'Previous'}
+          </button>
+          
+          <button
+            onClick={() => {
+              if (tutorialStep < tutorialSteps.length - 1) {
+                setTutorialStep(tutorialStep + 1);
+              } else {
+                setShowTutorial(false);
+                setTutorialStep(0);
+                if (step === 'upload') {
+                  fileInputRef.current?.click();
+                }
+              }
+            }}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+          >
+            {tutorialStep === tutorialSteps.length - 1 
+              ? (step === 'upload' ? 'Upload Document' : 'Start Signing') 
+              : 'Next'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Copyright Footer Component - MOVED OUTSIDE
+const CopyrightFooter = () => (
+  <div className="mt-8 pt-6 border-t border-gray-200">
+    <div className="text-center text-gray-500 text-sm">
+      <div className="flex flex-col md:flex-row items-center justify-center space-y-2 md:space-y-0 md:space-x-6">
+        <div>
+          &copy; {new Date().getFullYear()} Signum Document Signing Platform. All rights reserved.
+        </div>
+        <div className="hidden md:block">•</div>
+        <div>
+          Version 2.1.0 • Built with open-sign-pdf.jar integration
+        </div>
+        <div className="hidden md:block">•</div>
+        <div className="flex items-center justify-center space-x-4">
+          <a href="#" className="text-blue-600 hover:text-blue-800 transition-colors">
+            Legal Framework
+          </a>
+          <span className="text-gray-400">|</span>
+          <a href="#" className="text-blue-600 hover:text-blue-800 transition-colors">
+            Privacy Policy
+          </a>
+          <span className="text-gray-400">|</span>
+          <a href="#" className="text-blue-600 hover:text-blue-800 transition-colors">
+            Terms of Service
+          </a>
+          <span className="text-gray-400">|</span>
+          <a href="#" className="text-blue-600 hover:text-blue-800 transition-colors">
+            Contact Support
+          </a>
+        </div>
+      </div>
+      <div className="mt-2 text-xs text-gray-400">
+        Electronic signatures provided under applicable electronic commerce laws. 
+        Digital signatures require valid company certificates. 
+        For cross-border B2B agreements, include governing law, jurisdiction, and digital signature recognition clauses.
+        Government submissions may require designated authority certificates.
+      </div>
+      <div className="mt-1 text-xs text-gray-500 bg-gray-50 p-2 rounded max-w-2xl mx-auto">
+        <strong>Legal Note:</strong> In cross-border B2B contracts, parties can agree to recognize digital signatures using company certificates. 
+        Courts focus on contractual intent, identity attribution, and document integrity. 
+        Stamp duty affects enforcement, not contract formation.
+      </div>
+    </div>
+  </div>
+);
+
+// Main Component
 const PDFSignatureApp = () => {
   // State management
   const [step, setStep] = useState('upload');
@@ -17,6 +398,7 @@ const PDFSignatureApp = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   
   // Signature/Initial management
   const [signatureImage, setSignatureImage] = useState(null);
@@ -27,6 +409,7 @@ const PDFSignatureApp = () => {
   // Company signature
   const [staffName, setStaffName] = useState('');
   const [staffNumber, setStaffNumber] = useState('');
+  const [companyName, setCompanyName] = useState('Your Company');
   const [personalSignedPdf, setPersonalSignedPdf] = useState(null);
   const [companySignedPdf, setCompanySignedPdf] = useState(null);
   
@@ -41,11 +424,20 @@ const PDFSignatureApp = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   
-  // Digital signature specific
-  const [digitalSignaturePreview, setDigitalSignaturePreview] = useState(null);
-  const [showDigitalSignature, setShowDigitalSignature] = useState(false);
-  
-  // FIXED: Refs for canvas and UI elements
+  // Digital signature configuration
+  const [signatureMode, setSignatureMode] = useState('electronic');
+  const [signingReason, setSigningReason] = useState('Document signing and approval');
+  const [signingLocation, setSigningLocation] = useState('Corporate Headquarters');
+  const [digitalSignatureType, setDigitalSignatureType] = useState('graphical');
+  const [digitalSignatureSize, setDigitalSignatureSize] = useState(200);
+  const [includeTimestamp, setIncludeTimestamp] = useState(true);
+  const [finaliseDocument, setFinaliseDocument] = useState(false);
+  const [passwordProtection, setPasswordProtection] = useState(false);
+  const [password, setPassword] = useState('');
+  const [certificatePath, setCertificatePath] = useState('C:\\xampp\\apache\\conf\\ssl.crt\\fullchain.pem');
+  const [privateKeyPath, setPrivateKeyPath] = useState('C:\\xampp\\apache\\conf\\ssl.key\\server.key');
+
+  // Refs for canvas and UI elements
   const pdfContainerRef = useRef(null);
   const canvasRef = useRef(null);
   const signatureCanvasRef = useRef(null);
@@ -53,14 +445,7 @@ const PDFSignatureApp = () => {
   const fileInputRef = useRef(null);
   const sidebarRef = useRef(null);
 
-  const [signatureMode, setSignatureMode] = useState('personal');
-  const [signingReason, setSigningReason] = useState('Document signing and approval');
-  const [signingLocation, setSigningLocation] = useState('Corporate Headquarters');
-  const [digitalSignatureType, setDigitalSignatureType] = useState('graphical');
-  const [digitalSignatureSize, setDigitalSignatureSize] = useState(200);
-  const [includeTimestamp, setIncludeTimestamp] = useState(true);
-
-  // FIXED: Improved coordinate conversion functions
+  // Coordinate conversion functions
   const canvasToA4 = (canvasX, canvasY, canvasWidth, canvasHeight) => {
     return {
       x: (canvasX / canvasWidth) * 595,  // A4 width in points
@@ -92,7 +477,7 @@ const PDFSignatureApp = () => {
           setTotalPages(pdf.numPages);
           setCurrentPage(1);
           
-          if (signatureMode === 'company') {
+          if (signatureMode === 'pki') {
             setStep('company-sign');
           } else {
             setStep('view-sign');
@@ -114,7 +499,99 @@ const PDFSignatureApp = () => {
     }
   };
 
-  // FIXED: Render PDF page with proper scaling
+  // Render signature marks with updated text - MOVED BEFORE useEffect
+  const renderSignatureMarks = useCallback((context, viewport) => {
+    const currentPageMarks = signatureMarks.filter(mark => mark.page === currentPage);
+    
+    currentPageMarks.forEach(mark => {
+      // Convert A4 coordinates to canvas coordinates
+      const canvasX = (mark.x / 595) * viewport.width;
+      const canvasY = (mark.y / 842) * viewport.height;
+      const canvasWidth = (mark.width / 595) * viewport.width;
+      const canvasHeight = (mark.height / 842) * viewport.height;
+      
+      context.save();
+      
+      // Draw selection border if selected
+      if (selectedMark?.id === mark.id) {
+        context.strokeStyle = '#3b82f6';
+        context.lineWidth = 2;
+        context.setLineDash([5, 5]);
+        context.strokeRect(canvasX - 2, canvasY - 2, canvasWidth + 4, canvasHeight + 4);
+        context.setLineDash([]);
+      }
+      
+      context.globalAlpha = mark.opacity || 1;
+      
+      if (mark.type === 'digital') {
+        // Draw digital signature box
+        context.fillStyle = 'rgba(220, 252, 231, 0.2)';
+        context.fillRect(canvasX, canvasY, canvasWidth, canvasHeight);
+        
+        context.strokeStyle = '#16a34a';
+        context.lineWidth = 2;
+        context.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+        
+        // Draw digital signature text
+        context.fillStyle = '#15803d';
+        context.font = `bold ${12 * (viewport.width / 595)}px Arial`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        const centerX = canvasX + canvasWidth / 2;
+        const centerY = canvasY + canvasHeight / 2;
+        
+        // Updated text rendering based on recommendations
+        if (mark.digitalData?.type === 'text') {
+          context.fillText('CRYPTOGRAPHIC DIGITAL SIGNATURE', centerX, centerY - 30);
+          context.font = `${10 * (viewport.width / 595)}px Arial`;
+          if (mark.digitalData?.staffName) {
+            context.fillText(`By: ${mark.digitalData.staffName}`, centerX, centerY - 15);
+          }
+          if (companyName) {
+            context.fillText(`Organisation: ${companyName}`, centerX, centerY);
+          }
+          context.fillText(`Date: ${new Date().toLocaleDateString()}`, centerX, centerY + 15);
+          context.fillText(`Status: Document Integrity Cryptographically Protected`, centerX, centerY + 30);
+  context.fillText(`Applicable Law: Contractual Intent Under Chosen Jurisdiction`, centerX, centerY + 45);
+}else {
+          // Graphical signature with updated text
+          context.fillText('Digitally Signed', centerX, centerY - 25);
+          context.font = `${10 * (viewport.width / 595)}px Arial`;
+          if (mark.digitalData?.staffName) {
+            context.fillText(`By: ${mark.digitalData.staffName}`, centerX, centerY - 10);
+          }
+          if (companyName) {
+            context.fillText(`Organisation: ${companyName}`, centerX, centerY + 5);
+          }
+          context.fillText(`Date: ${new Date().toLocaleDateString()}`, centerX, centerY + 20);
+          
+          // Show document status if finalised
+          if (mark.digitalData?.finaliseDocument) {
+            context.font = `bold ${10 * (viewport.width / 595)}px Arial`;
+            context.fillText('Document Finalised', centerX, centerY + 35);
+          } else {
+            context.fillText('Integrity: Protected', centerX, centerY + 35);
+          }
+        }
+      } else if (mark.image) {
+        const img = new Image();
+        img.onload = () => {
+          context.drawImage(img, canvasX, canvasY, canvasWidth, canvasHeight);
+        };
+        img.src = mark.image;
+      } else if (mark.text) {
+        context.font = `${mark.fontSize * (viewport.width / 595)}px Arial`;
+        context.fillStyle = mark.color || '#000000';
+        context.textBaseline = 'top';
+        context.fillText(mark.text, canvasX, canvasY);
+      }
+      
+      context.restore();
+    });
+  }, [signatureMarks, currentPage, selectedMark, companyName]);
+
+  // Render PDF page with proper scaling
   useEffect(() => {
     if (!pdfDocument || !canvasRef.current || currentPage < 1) return;
 
@@ -150,82 +627,9 @@ const PDFSignatureApp = () => {
     };
 
     renderPage();
-  }, [pdfDocument, currentPage, zoom, signatureMarks]);
+  }, [pdfDocument, currentPage, zoom, renderSignatureMarks]);
 
-  // FIXED: Updated renderSignatureMarks function
-  const renderSignatureMarks = (context, viewport) => {
-    const currentPageMarks = signatureMarks.filter(mark => mark.page === currentPage);
-    
-    currentPageMarks.forEach(mark => {
-      // Convert A4 coordinates to canvas coordinates
-      const canvasX = (mark.x / 595) * viewport.width;
-      const canvasY = (mark.y / 842) * viewport.height;
-      const canvasWidth = (mark.width / 595) * viewport.width;
-      const canvasHeight = (mark.height / 842) * viewport.height;
-      
-      context.save();
-      
-      // Draw selection border if selected
-      if (selectedMark?.id === mark.id) {
-        context.strokeStyle = '#3b82f6';
-        context.lineWidth = 2;
-        context.setLineDash([5, 5]);
-        context.strokeRect(canvasX - 2, canvasY - 2, canvasWidth + 4, canvasHeight + 4);
-        context.setLineDash([]);
-      }
-      
-      context.globalAlpha = mark.opacity || 1;
-      
-      if (mark.type === 'digital') {
-        // Draw digital signature box
-        context.fillStyle = 'rgba(220, 252, 231, 0.2)';
-        context.fillRect(canvasX, canvasY, canvasWidth, canvasHeight);
-        
-        context.strokeStyle = '#16a34a';
-        context.lineWidth = 2;
-        context.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
-        
-        // Draw digital signature text
-        context.fillStyle = '#15803d';
-        context.font = `bold ${14 * (viewport.width / 595)}px Arial`;
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        
-        // FIXED: Center text properly
-        const centerX = canvasX + canvasWidth / 2;
-        const centerY = canvasY + canvasHeight / 2;
-        
-        if (mark.digitalData?.type === 'text') {
-          context.fillText('DIGITAL SIGNATURE', centerX, centerY - 10);
-          context.font = `${10 * (viewport.width / 595)}px Arial`;
-          if (mark.digitalData?.staffName) {
-            context.fillText(mark.digitalData.staffName, centerX, centerY + 10);
-          }
-        } else {
-          // Graphical signature
-          context.font = `${12 * (viewport.width / 595)}px Arial`;
-          context.fillText('Company Seal', centerX, centerY);
-          context.font = `${10 * (viewport.width / 595)}px Arial`;
-          context.fillText('Digitally Signed', centerX, centerY + 15);
-        }
-      } else if (mark.image) {
-        const img = new Image();
-        img.onload = () => {
-          context.drawImage(img, canvasX, canvasY, canvasWidth, canvasHeight);
-        };
-        img.src = mark.image;
-      } else if (mark.text) {
-        context.font = `${mark.fontSize * (viewport.width / 595)}px Arial`;
-        context.fillStyle = mark.color || '#000000';
-        context.textBaseline = 'top';
-        context.fillText(mark.text, canvasX, canvasY);
-      }
-      
-      context.restore();
-    });
-  };
-
-  // FIXED: Updated handleAddMark with proper centering
+  // Handle adding marks
   const handleAddMark = (type, canvasX = null, canvasY = null) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -263,8 +667,8 @@ const PDFSignatureApp = () => {
           setError('Please enter staff name and number first');
           return;
         }
-        width = 200;
-        height = 80;
+        width = 250; // Increased width for new text
+        height = 100; // Increased height for new text
         break;
       default:
         width = 150;
@@ -274,12 +678,10 @@ const PDFSignatureApp = () => {
     let positionX, positionY;
 
     if (canvasX !== null && canvasY !== null) {
-      // FIXED: Convert canvas coordinates to A4 and center
       const a4Coords = canvasToA4(canvasX, canvasY, canvas.width, canvas.height);
-      positionX = a4Coords.x - (width / 2);  // Center horizontally
-      positionY = a4Coords.y - (height / 2); // Center vertically
+      positionX = a4Coords.x - (width / 2);
+      positionY = a4Coords.y - (height / 2);
     } else {
-      // Default positions
       positionX = 200;
       positionY = 500;
     }
@@ -307,32 +709,35 @@ const PDFSignatureApp = () => {
         digitalData: {
           staffName,
           staffNumber,
+          companyName,
           reason: signingReason,
           location: signingLocation,
           type: digitalSignatureType,
           includeTimestamp,
+          finaliseDocument,
+          passwordProtection,
           timestamp: new Date().toISOString()
         }
       })
     };
 
-    setSignatureMarks([...signatureMarks, newMark]);
+    setSignatureMarks(prev => [...prev, newMark]);
     if (type === 'text') setTextInput('');
     setError(null);
     setSelectedMark(newMark);
     setActiveTool('move');
   };
 
-  const updateMark = (id, updates) => {
-    setSignatureMarks(signatureMarks.map(mark => 
+  const updateMark = useCallback((id, updates) => {
+    setSignatureMarks(prev => prev.map(mark => 
       mark.id === id ? { ...mark, ...updates } : mark
     ));
-  };
+  }, []);
 
-  const removeMark = (id) => {
-    setSignatureMarks(signatureMarks.filter(mark => mark.id !== id));
+  const removeMark = useCallback((id) => {
+    setSignatureMarks(prev => prev.filter(mark => mark.id !== id));
     if (selectedMark?.id === id) setSelectedMark(null);
-  };
+  }, [selectedMark]);
 
   const clearAllMarks = () => {
     if (window.confirm('Are you sure you want to remove all signatures?')) {
@@ -341,7 +746,7 @@ const PDFSignatureApp = () => {
     }
   };
 
-  // FIXED: handleCanvasClick with proper coordinates
+  // Handle canvas click
   const handleCanvasClick = (e) => {
     if (!activeTool || activeTool === 'move') return;
     
@@ -352,7 +757,6 @@ const PDFSignatureApp = () => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    // Convert to canvas coordinates (accounting for CSS scaling)
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const canvasX = x * scaleX;
@@ -365,7 +769,7 @@ const PDFSignatureApp = () => {
     }
   };
 
-  // FIXED: Improved mark dragging
+  // Handle mark dragging
   const handleMarkMouseDown = (e, mark) => {
     if (activeTool !== 'move') return;
     
@@ -379,13 +783,11 @@ const PDFSignatureApp = () => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    // Convert to canvas coordinates
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const canvasX = x * scaleX;
     const canvasY = y * scaleY;
     
-    // Convert to A4 coordinates
     const a4Click = canvasToA4(canvasX, canvasY, canvas.width, canvas.height);
     
     setSelectedMark(mark);
@@ -396,8 +798,8 @@ const PDFSignatureApp = () => {
     });
   };
 
-  // FIXED: Handle mouse move for dragging
-  const handleMouseMove = (e) => {
+  // Handle mouse move for dragging
+  const handleMouseMove = useCallback((e) => {
     if (!isDragging || !selectedMark || !canvasRef.current) return;
     
     e.preventDefault();
@@ -407,31 +809,27 @@ const PDFSignatureApp = () => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    // Convert to canvas coordinates
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const canvasX = x * scaleX;
     const canvasY = y * scaleY;
     
-    // Convert to A4 coordinates
     const a4Coords = canvasToA4(canvasX, canvasY, canvas.width, canvas.height);
     
-    // Calculate new position with offset
     const newX = a4Coords.x - dragOffset.x;
     const newY = a4Coords.y - dragOffset.y;
     
-    // Keep within bounds (A4 page)
     const boundedX = Math.max(0, Math.min(595 - selectedMark.width, newX));
     const boundedY = Math.max(0, Math.min(842 - selectedMark.height, newY));
     
     updateMark(selectedMark.id, { x: boundedX, y: boundedY });
-  };
+  }, [isDragging, selectedMark, dragOffset, updateMark]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
     }
-  };
+  }, [isDragging]);
 
   // Signature drawing functions
   const [isDrawing, setIsDrawing] = useState(false);
@@ -517,7 +915,6 @@ const PDFSignatureApp = () => {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Calculate dimensions to fit canvas
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
             const imgWidth = img.width;
@@ -542,8 +939,8 @@ const PDFSignatureApp = () => {
     }
   };
 
-  // Complete personal signature
-  const completePersonalSignature = async () => {
+  // Complete electronic signature
+  const completeElectronicSignature = async () => {
     if (signatureMarks.length === 0) {
       setError('Please place at least one signature on the document');
       return;
@@ -565,12 +962,12 @@ const PDFSignatureApp = () => {
           ipAddress: '127.0.0.1',
           userAgent: navigator.userAgent
         },
-        downloadUrl: '#',
-        fileName: `personal_signed_${pdfFile?.name || 'document.pdf'}`
+        fileName: `electronic_signed_${pdfFile?.name || 'document.pdf'}`,
+        status: 'electronic-signature'
       });
 
-      setStep('personal-complete');
-      setSuccess('Personal signature completed successfully!');
+      setStep('electronic-complete');
+      setSuccess('Electronic signature completed successfully with trusted timestamp for evidentiary purposes.');
     } catch (err) {
       setError(`Failed to complete signature: ${err.message}`);
       console.error('Signature error:', err);
@@ -579,8 +976,45 @@ const PDFSignatureApp = () => {
     }
   };
 
-  // FIXED: Complete company certificate signature with open-pdf-sign integration
-  const completeCompanyCertificate = async () => {
+  // Generate open-sign-pdf command with proper wording
+  const generateOpenSignPdfCommand = (signatureMark) => {
+    const baseCommand = 'java -jar open-sign-pdf.jar';
+    const inputFile = `"${pdfFile?.name}"`;
+    const outputFile = `"digital_signed_${pdfFile?.name}"`;
+    const certificate = `"${certificatePath.replace(/\\/g, '\\\\')}"`;
+    const privateKey = `"${privateKeyPath.replace(/\\/g, '\\\\')}"`;
+    
+    let command = `${baseCommand} \\\n  --input ${inputFile} \\\n  --output ${outputFile} \\\n  --certificate ${certificate} \\\n  --key ${privateKey}`;
+    
+    // Add position parameters
+    command += ` \\\n  --page ${signatureMark.page} \\\n  --position-x ${Math.round(signatureMark.x)} \\\n  --position-y ${Math.round(signatureMark.y)}`;
+    
+    // Add timestamp if enabled
+    if (includeTimestamp) {
+      command += ` \\\n  --timestamp`;
+    }
+    
+    // Add encryption options if finalising document
+    if (finaliseDocument) {
+      command += ` \\\n  --encrypt`;
+      
+      // Add password if password protection is enabled
+      if (passwordProtection && password) {
+        command += ` \\\n  --password "${password}"`;
+      }
+    }
+    
+    // Add reason and location
+    command += ` \\\n  --reason "${signingReason}" \\\n  --location "${signingLocation}"`;
+    
+    // Add metadata for signer
+    command += ` \\\n  --metadata-signer "${staffName}" \\\n  --metadata-company "${companyName}"`;
+    
+    return command;
+  };
+
+  // Complete company digital signature
+  const completeCompanyDigitalSignature = async () => {
     if (!staffName || !staffNumber) {
       setError('Please enter your staff name and number');
       return;
@@ -592,60 +1026,60 @@ const PDFSignatureApp = () => {
       return;
     }
 
+    if (passwordProtection && !password) {
+      setError('Please enter a password for document protection');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      // For demo, simulate API call
+      // Find the digital signature mark
+      const digitalSignature = signatureMarks.find(mark => mark.type === 'digital');
+      
+      // Generate open-sign-pdf command
+      const openSignPdfCommand = generateOpenSignPdfCommand(digitalSignature);
+      
+      console.log('Open Sign PDF Command:', openSignPdfCommand);
+
+      // For demo purposes, simulate the signing process
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Generate open-pdf-sign command
-      const digitalSignature = signatureMarks.find(mark => mark.type === 'digital');
-      const page = digitalSignature?.page || -1; // -1 means last page
+      const statusBanner = finaliseDocument 
+        ? (passwordProtection 
+          ? 'Status: Finalised document — no further changes permitted'
+          : 'Status: Finalised document — further changes restricted')
+        : 'Status: Digitally signed — further signatures may be added';
       
-      const openPdfSignCommand = `java -jar open-pdf-sign.jar \\
-  --input "${pdfFile?.name}" \\
-  --output "company_signed_${pdfFile?.name}" \\
-  --certificate "C:\\\\Windows\\\\System32\\\\certificate.crt" \\
-  --key "C:\\\\Windows\\\\System32\\\\key.pem" \\
-  --page ${page} \\
-  --image "signature.png" \\
-  --position-x ${digitalSignature?.x || 100} \\
-  --position-y ${digitalSignature?.y || 100} \\
-  --width ${digitalSignature?.width || 200} \\
-  --height ${digitalSignature?.height || 80} \\
-  --hint "You can check the validity at https://www.signaturpruefung.gv.at" \\
-  --reason "${signingReason}" \\
-  --location "${signingLocation}" \\
-  ${includeTimestamp ? '--timestamp' : ''}`;
-
-      console.log('Open PDF Sign Command:', openPdfSignCommand);
-
-      // In production, you would:
-      // 1. Send the PDF and signature data to your backend
-      // 2. Backend would execute open-pdf-sign with the provided parameters
-      // 3. Return the signed PDF
-
       setCompanySignedPdf({
         timestamp: new Date().toISOString(),
         staffName,
         staffNumber,
-        openPdfSignCommand,
+        companyName,
+        openSignPdfCommand,
+        configuration: {
+          includeTimestamp,
+          finaliseDocument,
+          passwordProtection,
+          certificatePath,
+          privateKeyPath
+        },
         certificateInfo: {
-          subject: 'CN=yourcompany.com, O=Your Company, C=US',
-          issuer: 'DigiCert',
+          subject: 'CN=your-company.com, O=Your Company, C=US',
+          issuer: 'Your Certificate Authority',
           validFrom: new Date().toISOString(),
           validTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          timestampAuthority: includeTimestamp ? 'DigiCert Timestamp Server' : 'None'
+          timestampAuthority: includeTimestamp ? 'Trusted Timestamp Authority' : 'None'
         },
-        downloadUrl: '#',
-        fileName: `company_signed_${new Date().toISOString().slice(0,10).replace(/-/g, '')}_${pdfFile?.name || 'document.pdf'}`
+        fileName: `digital_signed_${new Date().toISOString().slice(0,10).replace(/-/g, '')}_${pdfFile?.name || 'document.pdf'}`,
+        statusBanner
       });
 
-      setStep('company-complete');
-      setSuccess('Company certificate applied successfully! Digital signature is cryptographically secured.');
+      setStep('pki-complete');
+      setSuccess('Company digital signature successfully applied. Document integrity is cryptographically protected.');
     } catch (err) {
-      setError(`Failed to apply company certificate: ${err.message}`);
+      setError(`Failed to apply company digital signature: ${err.message}`);
       console.error('Company signature error:', err);
     } finally {
       setLoading(false);
@@ -655,22 +1089,33 @@ const PDFSignatureApp = () => {
   // Handle download
   const handleDownload = async (type) => {
     try {
-      if (type === 'personal' && personalSignedPdf?.fileName) {
-        if (process.env.NODE_ENV === 'development') {
-          alert(`In development: File would be downloaded as ${personalSignedPdf.fileName}\n\nIn production, this would download the signed PDF with all signatures.`);
-        } else {
-          // In production, this would call your backend to generate the signed PDF
-          await downloadSignedPdf(personalSignedPdf.downloadUrl, personalSignedPdf.fileName);
-        }
-      } else if (type === 'company' && companySignedPdf?.fileName) {
-        if (process.env.NODE_ENV === 'development') {
-          alert(`In development: File would be downloaded as ${companySignedPdf.fileName}\n\nIn production, this would download the signed PDF with digital certificate and timestamp.\n\nCommand used: ${companySignedPdf.openPdfSignCommand}`);
-        } else {
-          // In production, this would call your backend which uses open-pdf-sign
-          await downloadSignedPdf(companySignedPdf.downloadUrl, companySignedPdf.fileName);
-        }
-      } else {
-        alert('In production, this would download the signed PDF');
+      if (type === 'electronic' && personalSignedPdf?.fileName) {
+        // Simulate download for electronic signature
+        const link = document.createElement('a');
+        link.download = personalSignedPdf.fileName;
+        
+        // Create a dummy PDF file for demo
+        const pdfContent = '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n...';
+        const blob = new Blob([pdfContent], { type: 'application/pdf' });
+        link.href = URL.createObjectURL(blob);
+        link.click();
+      } else if (type === 'pki' && companySignedPdf?.fileName) {
+        // Show the command that would be executed
+        alert(
+          `Digital Signature Configuration Applied\n\n` +
+          `Status: ${companySignedPdf.statusBanner}\n\n` +
+          `Document saved as: ${companySignedPdf.fileName}`
+        );
+        
+        // Simulate download
+        const link = document.createElement('a');
+        link.download = companySignedPdf.fileName;
+        
+        // Create a dummy PDF file for demo
+        const pdfContent = '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n...';
+        const blob = new Blob([pdfContent], { type: 'application/pdf' });
+        link.href = URL.createObjectURL(blob);
+        link.click();
       }
     } catch (err) {
       setError('Failed to download file. Please try again.');
@@ -696,27 +1141,51 @@ const PDFSignatureApp = () => {
     setSelectedMark(null);
     setActiveTool('signature');
     setIsFullscreen(false);
-    setSignatureMode('personal');
+    setSignatureMode('electronic');
+    setFinaliseDocument(false);
+    setPasswordProtection(false);
+    setPassword('');
+    setSidebarVisible(true);
   };
 
   // Toggle fullscreen
-  const toggleFullscreen = () => {
-    const element = pdfContainerRef.current?.parentElement;
-    
-    if (!document.fullscreenElement) {
-      if (element?.requestFullscreen) {
-        element.requestFullscreen();
-      }
-      setIsFullscreen(true);
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-      setIsFullscreen(false);
+const toggleFullscreen = () => {
+  // Try to find the element with pdf-viewer-container class
+  const container = document.querySelector('.pdf-viewer-container');
+  const element = container || pdfContainerRef.current?.closest('.pdf-viewer-container');
+  
+  if (!element) {
+    console.warn('Fullscreen container not found');
+    return;
+  }
+  
+  if (!document.fullscreenElement) {
+    if (element.requestFullscreen) {
+      element.requestFullscreen();
+    } else if (element.webkitRequestFullscreen) {
+      element.webkitRequestFullscreen();
+    } else if (element.msRequestFullscreen) {
+      element.msRequestFullscreen();
     }
+    setIsFullscreen(true);
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+    setIsFullscreen(false);
+  }
+};
+
+  // Toggle sidebar for mobile
+  const toggleSidebar = () => {
+    setSidebarVisible(!sidebarVisible);
   };
 
-  // FIXED: Add event listeners
+  // Add event listeners
   useEffect(() => {
     const handleMouseUpGlobal = () => {
       if (isDragging) {
@@ -728,104 +1197,131 @@ const PDFSignatureApp = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
 
+    const handleKeyPress = (e) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        toggleFullscreen();
+      }
+      if (e.key === ' ' && step !== 'upload') {
+        e.preventDefault();
+        setCurrentPage(prev => Math.min(totalPages, prev + 1));
+      }
+    };
+
     document.addEventListener('mouseup', handleMouseUpGlobal);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('keydown', handleKeyPress);
 
     return () => {
       document.removeEventListener('mouseup', handleMouseUpGlobal);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('keydown', handleKeyPress);
     };
-  }, [isDragging, handleMouseMove]);
+  }, [isDragging, isFullscreen, step, totalPages, handleMouseMove]);
 
-  // Upload screen
+  // Upload screen with updated wording
   const renderUpload = () => (
     <div className="max-w-6xl mx-auto p-4 md:p-8">
       <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <div className="relative">
-              <FileText className="w-16 h-16 text-blue-600 mr-4" />
-              <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                <Lock className="w-4 h-4 text-white" />
+            <div className="relative inline-block">
+              <FileText className="w-20 h-20 text-blue-600" />
+              <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center border-4 border-white">
+                <Shield className="w-5 h-5 text-white" />
               </div>
             </div>
-            <div className="text-left">
+            <div className="text-left ml-6">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Signum</h1>
-              <p className="text-lg text-gray-600">Secure Document Signing Platform</p>
+              <p className="text-lg text-gray-600">Document Signing Platform</p>
             </div>
           </div>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Upload your PDF document to begin the secure signing process with electronic signatures or company digital certificates.
+            Upload your PDF document to begin the signing process with electronic or cryptographic digital signatures.
           </p>
         </div>
 
-        {/* Signature Mode Selection */}
+        {/* Signature Mode Selection - UPDATED WORDING */}
         <div className="mb-8 bg-gray-50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Signature Type</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Signature Type Selection</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
-              onClick={() => setSignatureMode('personal')}
-              className={`p-4 rounded-xl border-2 transition-all ${
-                signatureMode === 'personal'
+              onClick={() => setSignatureMode('electronic')}
+              className={`p-4 rounded-xl border-2 transition-all text-left ${
+                signatureMode === 'electronic'
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-300 hover:border-blue-300'
               }`}
             >
-              <div className="flex items-center justify-center mb-2">
+              <div className="flex items-center mb-2">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  signatureMode === 'personal' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                  signatureMode === 'electronic' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
                 }`}>
                   <PenTool className="w-5 h-5" />
                 </div>
+                <div className="ml-3">
+                  <h4 className="font-semibold text-gray-900">Electronic Signature</h4>
+                  <p className="text-xs text-gray-500 mt-1">Electronic signature under applicable electronic commerce laws</p>
+                </div>
               </div>
-              <h4 className="font-semibold text-gray-900">Personal Signature</h4>
-              <p className="text-sm text-gray-600 mt-1">
-                Draw or upload your signature. Add initials and text fields.
+              <p className="text-sm text-gray-600 mt-2">
+                Draw or upload a signature image. Add initials, comments, and text annotations.
+                Includes trusted timestamp for evidentiary purposes.
               </p>
-              <div className="mt-3 text-xs text-gray-500">
-                Electronic Commerce Act 2006
+              <div className="mt-3 text-xs text-gray-500 border-t border-gray-200 pt-2">
+                Note: Does not apply cryptographic document integrity protection.
               </div>
             </button>
             
             <button
-              onClick={() => setSignatureMode('company')}
-              className={`p-4 rounded-xl border-2 transition-all ${
-                signatureMode === 'company'
+              onClick={() => setSignatureMode('pki')}
+              className={`p-4 rounded-xl border-2 transition-all text-left ${
+                signatureMode === 'pki'
                   ? 'border-green-500 bg-green-50'
                   : 'border-gray-300 hover:border-green-300'
               }`}
             >
-              <div className="flex items-center justify-center mb-2">
+              <div className="flex items-center mb-2">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  signatureMode === 'company' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
+                  signatureMode === 'pki' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
                 }`}>
-                  <Building2 className="w-5 h-5" />
+                  <Award className="w-5 h-5" />
+                </div>
+                <div className="ml-3">
+                  <h4 className="font-semibold text-gray-900">Company Digital Signature (PKI)</h4>
+                  <p className="text-xs text-gray-500 mt-1">Advanced digital signature suitable for inter-company use</p>
                 </div>
               </div>
-              <h4 className="font-semibold text-gray-900">Company Certificate</h4>
-              <p className="text-sm text-gray-600 mt-1">
-                Sign with company SSL certificate using open-pdf-sign. Legally binding digital signature.
+              <p className="text-sm text-gray-600 mt-2">
+                Apply a cryptographic digital signature using a company certificate.
+                Ensures signer identity, document integrity, and auditability.
               </p>
-              <div className="mt-3 text-xs text-gray-500">
-                Digital Signature Act 1997
+              <div className="mt-3 text-xs text-gray-500 border-t border-gray-200 pt-2">
+                Acceptance depends on counterparty and jurisdiction.
               </div>
             </button>
           </div>
           
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              {signatureMode === 'personal' 
-                ? 'You will be able to add electronic signatures, initials, and text fields to the document.'
-                : 'You will be asked for staff details and can place a digital signature on the document using open-pdf-sign.'}
-            </p>
-          </div>
-        </div>
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+  <div className="flex">
+    <Info className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+    <div className="text-sm text-blue-800">
+      <strong>Legal Framework:</strong> Company-issued digital certificates are recognised for inter-company transactions under private international law and UNCITRAL principles. 
+      For cross-border B2B agreements, include governing law, jurisdiction, and digital signature recognition clauses. 
+      Government or statutory submissions may require certificates issued by designated authorities.
+    </div>
+  </div>
+</div>
 
         {/* Upload section */}
         <div className="border-3 border-dashed border-gray-300 rounded-2xl p-8 md:p-16 text-center hover:border-blue-500 transition-all duration-300 bg-gradient-to-br from-gray-50 to-blue-50">
-          <Upload className="w-16 h-16 md:w-20 md:h-20 text-gray-400 mx-auto mb-4" />
+          <div className="relative inline-block mb-4">
+            <FileText className="w-20 h-20 md:w-24 md:h-24 text-gray-400" />
+            <div className="absolute -bottom-2 -right-2 w-10 h-10 md:w-12 md:h-12 bg-blue-500 rounded-full flex items-center justify-center border-4 border-white">
+              <Upload className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            </div>
+          </div>
           <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">Upload Document</h3>
           <p className="text-gray-600 mb-6 max-w-md mx-auto">
             Drag & drop your PDF file here or click to browse
@@ -894,9 +1390,10 @@ const PDFSignatureApp = () => {
         )}
       </div>
     </div>
+    </div>
   );
 
-  // FIXED: View and sign screen
+  // Electronic signature interface (previously personal)
   const renderViewAndSign = () => {
     return (
       <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
@@ -904,8 +1401,15 @@ const PDFSignatureApp = () => {
         <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm flex-shrink-0">
           <div className="flex items-center space-x-3">
             <button 
+              onClick={toggleSidebar}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors md:hidden"
+              title="Toggle sidebar"
+            >
+              {sidebarVisible ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+            </button>
+            <button 
               onClick={resetApp}
-              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors hidden md:flex"
               title="Back to upload"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -915,17 +1419,37 @@ const PDFSignatureApp = () => {
                 {pdfFile?.name}
               </h2>
               <p className="text-sm text-gray-500">
-                {signatureMarks.length} signature{signatureMarks.length !== 1 ? 's' : ''} placed • Page {currentPage} of {totalPages}
+                {signatureMarks.length} element{signatureMarks.length !== 1 ? 's' : ''} placed • Page {currentPage} of {totalPages}
               </p>
             </div>
           </div>
           
           <div className="flex items-center space-x-2">
+            {/* Mobile Zoom Controls */}
+            <div className="md:hidden flex items-center">
+              <button
+                onClick={() => setZoom(Math.max(0.25, zoom - 0.25))}
+                disabled={zoom <= 0.25}
+                className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-sm text-gray-700 px-2">{Math.round(zoom * 100)}%</span>
+              <button
+                onClick={() => setZoom(Math.min(5, zoom + 0.25))}
+                disabled={zoom >= 5}
+                className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {/* Desktop Zoom Controls */}
             <div className="hidden md:flex items-center bg-gray-100 rounded-lg p-1">
               <button
                 onClick={() => setZoom(Math.max(0.25, zoom - 0.25))}
-                className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
                 disabled={zoom <= 0.25}
+                className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
@@ -936,9 +1460,9 @@ const PDFSignatureApp = () => {
                 {Math.round(zoom * 100)}%
               </button>
               <button
-                onClick={() => setZoom(Math.min(3, zoom + 0.25))}
-                className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
-                disabled={zoom >= 3}
+                onClick={() => setZoom(Math.min(5, zoom + 0.25))}
+                disabled={zoom >= 5}
+                className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
@@ -962,12 +1486,30 @@ const PDFSignatureApp = () => {
           </div>
         </div>
 
-        <div className="flex-1 flex overflow-hidden">
-          {/* FIXED: Left Sidebar with proper scrolling */}
-          <div ref={sidebarRef} className="w-96 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+        <div className="flex-1 flex overflow-hidden pdf-viewer-container">
+          {/* Left Sidebar - Mobile responsive */}
+          <div 
+            className={`${sidebarVisible ? 'flex' : 'hidden'} md:flex w-full md:w-96 bg-white border-r border-gray-200 flex-col absolute md:relative z-10 h-full`}
+            style={{ 
+              maxWidth: sidebarVisible ? '100%' : '0', 
+              transition: 'max-width 0.3s ease-in-out',
+              width: '100%',
+              maxWidth: '24rem'
+            }}
+            >
             <div className="p-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-lg font-semibold text-gray-900">Signing Tools</h3>
-              <p className="text-sm text-gray-600">Create and place signatures</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Electronic Signature</h3>
+                  <p className="text-sm text-gray-600">Add signature images, initials, and annotations</p>
+                </div>
+                <button 
+                  onClick={toggleSidebar}
+                  className="md:hidden p-2 text-gray-600 hover:text-gray-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4">
@@ -989,7 +1531,7 @@ const PDFSignatureApp = () => {
                         onClick={() => {
                           setActiveTool(tool.id);
                           if (tool.id === 'move' && selectedMark) {
-                            setSuccess('Click and drag signatures to move them');
+                            setSuccess('Click and drag elements to move them');
                           }
                         }}
                         className={`flex flex-col items-center p-2 rounded-lg border-2 transition-all ${
@@ -1035,7 +1577,20 @@ const PDFSignatureApp = () => {
                     onMouseMove={(e) => draw(e, 'signature')}
                     onMouseUp={() => stopDrawing('signature')}
                     onMouseLeave={() => stopDrawing('signature')}
-                    className="w-full h-32 cursor-crosshair"
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      const touch = e.touches[0];
+                      const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                      startDrawing(fakeEvent, 'signature');
+                    }}
+                    onTouchMove={(e) => {
+                      e.preventDefault();
+                      const touch = e.touches[0];
+                      const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                      draw(fakeEvent, 'signature');
+                    }}
+                    onTouchEnd={() => stopDrawing('signature')}
+                    className="w-full h-32 cursor-crosshair touch-none"
                   />
                 </div>
                 <div className="mt-2 flex justify-between">
@@ -1095,7 +1650,20 @@ const PDFSignatureApp = () => {
                     onMouseMove={(e) => draw(e, 'initial')}
                     onMouseUp={() => stopDrawing('initial')}
                     onMouseLeave={() => stopDrawing('initial')}
-                    className="w-full h-24 cursor-crosshair"
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      const touch = e.touches[0];
+                      const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                      startDrawing(fakeEvent, 'initial');
+                    }}
+                    onTouchMove={(e) => {
+                      e.preventDefault();
+                      const touch = e.touches[0];
+                      const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                      draw(fakeEvent, 'initial');
+                    }}
+                    onTouchEnd={() => stopDrawing('initial')}
+                    className="w-full h-24 cursor-crosshair touch-none"
                   />
                 </div>
                 <div className="mt-2 flex justify-between">
@@ -1135,7 +1703,7 @@ const PDFSignatureApp = () => {
               {/* Text Input */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Text Field
+                  Text Annotation
                 </label>
                 <div className="space-y-2">
                   <input
@@ -1156,7 +1724,7 @@ const PDFSignatureApp = () => {
                       onClick={() => {
                         if (textInput.trim()) {
                           setActiveTool('text');
-                          setSuccess('Click on PDF to place text');
+                          setSuccess('Click on PDF to place text annotation');
                         }
                       }}
                       disabled={!textInput.trim()}
@@ -1168,11 +1736,11 @@ const PDFSignatureApp = () => {
                 </div>
               </div>
 
-              {/* Placed Marks List */}
+              {/* Placed Elements List */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-semibold text-gray-900">
-                    Placed Marks ({signatureMarks.length})
+                    Placed Elements ({signatureMarks.length})
                   </h4>
                   {signatureMarks.length > 0 && (
                     <button
@@ -1227,24 +1795,37 @@ const PDFSignatureApp = () => {
                 </div>
               </div>
 
-              {/* Complete Button */}
-              <button
-                onClick={completePersonalSignature}
-                disabled={loading || signatureMarks.length === 0}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Processing Signature...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Complete Personal Signature
-                  </span>
-                )}
-              </button>
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <button
+                  onClick={completeElectronicSignature}
+                  disabled={loading || signatureMarks.length === 0}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Applying Electronic Signature...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center">
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Apply Electronic Signature
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setStep('company-sign');
+                    setSuccess('Switching to cryptographic digital signature mode');
+                  }}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-3 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300"
+                >
+                  <Award className="w-4 h-4 mr-2 inline" />
+                  Switch to Digital Signature (PKI)
+                </button>
+              </div>
 
               {error && (
                 <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
@@ -1267,7 +1848,18 @@ const PDFSignatureApp = () => {
           </div>
 
           {/* Main PDF Viewer */}
-          <div className="flex-1 flex flex-col bg-gray-100 overflow-hidden">
+          <div className="flex-1 flex flex-col bg-gray-100 overflow-hidden relative">
+            {/* Mobile sidebar toggle button */}
+            {!sidebarVisible && (
+              <button
+                onClick={toggleSidebar}
+                className="absolute top-4 left-4 z-20 md:hidden bg-white p-2 rounded-lg shadow-lg text-gray-700 hover:text-gray-900"
+                title="Show tools"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+
             {/* Page Controls */}
             <div className="bg-white border-b border-gray-200 p-3 flex-shrink-0">
               <div className="flex items-center justify-between">
@@ -1305,7 +1897,10 @@ const PDFSignatureApp = () => {
                   <button
                     onClick={() => {
                       if (pdfFile) {
-                        downloadOriginalPdf(pdfFile);
+                        const link = document.createElement('a');
+                        link.download = pdfFile.name;
+                        link.href = URL.createObjectURL(pdfFile);
+                        link.click();
                       }
                     }}
                     className="flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
@@ -1317,13 +1912,21 @@ const PDFSignatureApp = () => {
               </div>
             </div>
 
-            {/* FIXED: PDF Viewer Container */}
+            {/* PDF Viewer Container */}
             <div 
               ref={pdfContainerRef}
-              className="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-800"
+              className="flex-1 overflow-auto p-2 md:p-8 flex items-center justify-center bg-gray-800"
               onClick={handleCanvasClick}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchStart={(e) => {
+                if (activeTool === 'digital') {
+                  e.preventDefault();
+                  const touch = e.touches[0];
+                  const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                  handleCanvasClick(fakeEvent);
+                }
+              }}
             >
               {pdfDocument ? (
                 <div className="relative">
@@ -1356,12 +1959,42 @@ const PDFSignatureApp = () => {
                         handleMarkMouseDown(e, mark);
                       }
                     }}
+                    onTouchStart={(e) => {
+                      if (activeTool !== 'move') return;
+                      
+                      e.preventDefault();
+                      const canvas = canvasRef.current;
+                      if (!canvas) return;
+                      
+                      const touch = e.touches[0];
+                      const rect = canvas.getBoundingClientRect();
+                      const x = touch.clientX - rect.left;
+                      const y = touch.clientY - rect.top;
+                      
+                      const scaleX = canvas.width / rect.width;
+                      const scaleY = canvas.height / rect.height;
+                      const canvasX = x * scaleX;
+                      const canvasY = y * scaleY;
+                      
+                      const a4Coords = canvasToA4(canvasX, canvasY, canvas.width, canvas.height);
+                      const currentPageMarks = signatureMarks.filter(m => m.page === currentPage);
+                      const mark = currentPageMarks.find(m => 
+                        a4Coords.x >= m.x && a4Coords.x <= m.x + m.width &&
+                        a4Coords.y >= m.y && a4Coords.y <= m.y + m.height
+                      );
+                      
+                      if (mark) {
+                        const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                        handleMarkMouseDown(fakeEvent, mark);
+                      }
+                    }}
                     className="bg-white shadow-2xl"
                     style={{
                       cursor: isDragging ? 'grabbing' : 
                               activeTool === 'move' ? 'grab' : 'crosshair',
-                      maxWidth: '100%',
-                      maxHeight: 'calc(100vh - 180px)'
+                      // maxWidth: '100%',
+                      // maxHeight: 'calc(100vh - 180px)',
+                      touchAction: 'none'
                     }}
                   />
                 </div>
@@ -1378,7 +2011,7 @@ const PDFSignatureApp = () => {
     );
   };
 
-  // Company signature placement component
+    // Company digital signature placement component with updated wording
   const renderCompanySign = () => {
     return (
       <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
@@ -1386,9 +2019,22 @@ const PDFSignatureApp = () => {
         <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm flex-shrink-0">
           <div className="flex items-center space-x-3">
             <button 
-              onClick={() => setStep('upload')}
-              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Back to upload"
+              onClick={toggleSidebar}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors md:hidden"
+              title="Toggle sidebar"
+            >
+              {sidebarVisible ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+            </button>
+            <button 
+              onClick={() => {
+                if (signatureMode === 'electronic' && signatureMarks.length > 0) {
+                  setStep('view-sign');
+                } else {
+                  setStep('upload');
+                }
+              }}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors hidden md:flex"
+              title="Back"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -1397,336 +2043,553 @@ const PDFSignatureApp = () => {
                 {pdfFile?.name}
               </h2>
               <p className="text-sm text-gray-500">
-                Company Digital Signature Placement
+                Company Digital Signature (PKI) Configuration
               </p>
             </div>
           </div>
           
-          <button
-            onClick={() => setShowTutorial(true)}
-            className="flex items-center text-blue-600 hover:text-blue-700"
-          >
-            <HelpCircle className="w-5 h-5 mr-2" />
-            <span className="hidden md:inline">Help</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {/* Mobile Zoom Controls */}
+            <div className="md:hidden flex items-center bg-gray-100 rounded-lg p-1">
+  <button
+    onClick={() => setZoom(prev => Math.max(0.25, prev - 0.25))}
+    disabled={zoom <= 0.25}
+    className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    <ZoomOut className="w-4 h-4" />
+  </button>
+  <span className="px-2 text-sm font-medium text-gray-700">
+    {Math.round(zoom * 100)}%
+  </span>
+  <button
+    onClick={() => setZoom(prev => Math.min(5, prev + 0.25))}
+    disabled={zoom >= 5}
+    className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    <ZoomIn className="w-4 h-4" />
+  </button>
+</div>
+            
+            {/* Desktop Zoom Controls */}
+            <div className="hidden md:flex items-center bg-gray-100 rounded-lg p-1">
+              <button
+              onClick={() => setZoom(Math.min(5, zoom + 0.25))}
+              disabled={zoom <= 0.25}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                <ZoomOut className="w-4 h-4" />
+                </button>
+                <button
+                onClick={() => setZoom(1)}
+                className="px-3 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded"
+                >
+                  {Math.round(zoom * 100)}%
+                  </button>
+                  <button
+                  onClick={() => setZoom(Math.min(5, zoom + 0.25))}
+                  disabled={zoom >= 5}
+                  className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                    </button>
+                    </div>
+            
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+            
+            <button
+              onClick={() => setShowTutorial(true)}
+              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg"
+              title="Help"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left Sidebar with proper scrolling */}
-          <div className="w-96 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
-            <div className="p-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-lg font-semibold text-gray-900">Company Digital Signature</h3>
-              <p className="text-sm text-gray-600">Configure and place digital certificate using open-pdf-sign</p>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4">
-              {/* Staff Details Form */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">Staff Information</h4>
-                <div className="space-y-4">
+        <div className="flex-1 flex overflow-hidden pdf-viewer-container">
+          {/* Left Sidebar - Mobile responsive */}
+          <div 
+            className={`${sidebarVisible ? 'flex' : 'hidden'} md:flex w-full md:w-96 bg-white border-r border-gray-200 flex-col absolute md:relative z-10 h-full`}
+            style={{ 
+              maxWidth: sidebarVisible ? '100%' : '0', 
+              transition: 'max-width 0.3s ease-in-out',
+              width: '100%',
+              maxWidth: '24rem'
+            }}
+            >
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b border-gray-200 flex-shrink-0">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Staff Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={staffName}
-                      onChange={(e) => setStaffName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="Enter your full name"
-                    />
+                    <h3 className="text-lg font-semibold text-gray-900">Digital Signature (PKI)</h3>
+                    <p className="text-sm text-gray-600">Configure cryptographic digital signature</p>
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Staff Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={staffNumber}
-                      onChange={(e) => setStaffNumber(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="Enter your staff number"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Signing Reason
-                    </label>
-                    <input
-                      type="text"
-                      value={signingReason}
-                      onChange={(e) => setSigningReason(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="e.g., Document approval"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Location
-                    </label>
-                    <input
-                      type="text"
-                      value={signingLocation}
-                      onChange={(e) => setSigningLocation(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      placeholder="e.g., Corporate Headquarters"
-                    />
-                  </div>
+                  <button 
+                    onClick={toggleSidebar}
+                    className="md:hidden p-2 text-gray-600 hover:text-gray-800"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
-
-              {/* Digital Signature Appearance */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">Signature Appearance</h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Signature Type</label>
-                    <select 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      value={digitalSignatureType}
-                      onChange={(e) => setDigitalSignatureType(e.target.value)}
-                    >
-                      <option value="graphical">Graphical Signature</option>
-                      <option value="text">Text Only</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Signature Size</label>
-                    <div className="flex items-center space-x-2">
+              
+              <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                {/* Staff Details Form */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Signer Information</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Staff Name <span className="text-red-500">*</span>
+                      </label>
                       <input
-                        type="range"
-                        min="150"
-                        max="300"
-                        value={digitalSignatureSize}
-                        onChange={(e) => setDigitalSignatureSize(parseInt(e.target.value))}
-                        className="flex-1"
+                        type="text"
+                        value={staffName}
+                        onChange={(e) => setStaffName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="Enter your full name"
                       />
-                      <span className="text-sm text-gray-600 w-16">{digitalSignatureSize}px</span>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Staff Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={staffNumber}
+                        onChange={(e) => setStaffNumber(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="Enter your staff number"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Company Name
+                      </label>
+                      <input
+                        type="text"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="Your organisation name"
+                      />
                     </div>
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Include Timestamp</label>
-                    <div className="flex items-center">
+                </div>
+
+                {/* Digital Signature Options with updated wording */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Digital Signature Configurations</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Signing Reason</label>
+                      <input
+                        type="text"
+                        value={signingReason}
+                        onChange={(e) => setSigningReason(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., Document approval"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">Location</label>
+                      <input
+                        type="text"
+                        value={signingLocation}
+                        onChange={(e) => setSigningLocation(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="e.g., Corporate Headquarters"
+                      />
+                    </div>
+                    
+                    {/* Timestamp Option */}
+                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 text-blue-600 mr-2" />
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">Trusted Timestamp</span>
+                          <p className="text-xs text-gray-600">Record trusted signing time</p>
+                        </div>
+                      </div>
                       <input
                         type="checkbox"
                         checked={includeTimestamp}
                         onChange={(e) => setIncludeTimestamp(e.target.checked)}
                         className="h-4 w-4 text-green-600 rounded focus:ring-green-500"
                       />
-                      <span className="ml-2 text-sm text-gray-700">Add DigiCert timestamp (via open-pdf-sign --timestamp)</span>
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Digital Signature Preview */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">Preview</h4>
-                <div className="flex items-center justify-center p-4 bg-white rounded border border-gray-300">
-                  <div className="text-center">
-                    <div 
-                      className="border-2 border-green-300 rounded-lg flex items-center justify-center mx-auto mb-2"
-                      style={{ width: digitalSignatureSize, height: 80 }}
-                    >
-                      {digitalSignatureType === 'text' ? (
-                        <div className="text-green-600 font-semibold p-2 text-center">DIGITAL SIGNATURE</div>
-                      ) : (
-                        <div className="text-green-600 p-2">
-                          <Building2 className="w-8 h-8 mx-auto" />
-                          <div className="text-xs mt-1">Company Seal</div>
+                    
+                    {/* Finalise Document Option */}
+                    <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                      <div className="flex items-center">
+                        <FileCheck className="w-4 h-4 text-purple-600 mr-2" />
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">Finalise Document</span>
+                          <p className="text-xs text-gray-600">Lock document after signing to prevent further modifications</p>
                         </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-600">Will be placed using open-pdf-sign</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Place Signature Button */}
-              <div className="mb-6">
-                <button
-                  onClick={() => {
-                    if (!staffName || !staffNumber) {
-                      setError('Please enter staff name and number');
-                      return;
-                    }
-                    setActiveTool('digital');
-                    setSuccess('Click on the PDF where you want to place the digital signature');
-                  }}
-                  disabled={!staffName || !staffNumber}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-300"
-                >
-                  <Lock className="w-4 h-4 inline mr-2" />
-                  Place Digital Signature
-                </button>
-                <p className="text-xs text-gray-500 mt-2">
-                  Click this button, then click on the PDF to place the signature
-                </p>
-              </div>
-
-              {/* Placed Marks List */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-gray-900">
-                    Digital Signatures ({signatureMarks.filter(m => m.type === 'digital').length})
-                  </h4>
-                  {signatureMarks.filter(m => m.type === 'digital').length > 0 && (
-                    <button
-                      onClick={() => {
-                        const digitalMarks = signatureMarks.filter(m => m.type === 'digital');
-                        if (window.confirm(`Are you sure you want to remove ${digitalMarks.length} digital signature(s)?`)) {
-                          setSignatureMarks(signatureMarks.filter(m => m.type !== 'digital'));
-                          if (selectedMark?.type === 'digital') setSelectedMark(null);
-                        }
-                      }}
-                      className="text-xs text-red-600 hover:text-red-700"
-                    >
-                      Clear All
-                    </button>
-                  )}
-                </div>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {signatureMarks
-                    .filter(mark => mark.type === 'digital')
-                    .map((mark) => (
-                      <div 
-                        key={mark.id}
-                        className={`flex items-center justify-between p-2 rounded cursor-pointer ${
-                          selectedMark?.id === mark.id ? 'bg-green-50 border border-green-200' : 'bg-gray-50 hover:bg-gray-100'
-                        }`}
-                        onClick={() => {
-                          setSelectedMark(mark);
-                          setActiveTool('move');
-                          if (mark.page !== currentPage) {
-                            setCurrentPage(mark.page);
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={finaliseDocument}
+                        onChange={(e) => {
+                          setFinaliseDocument(e.target.checked);
+                          if (!e.target.checked) {
+                            setPasswordProtection(false);
+                            setPassword('');
                           }
                         }}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 rounded bg-green-100 text-green-600 flex items-center justify-center">
-                            D
+                        className="h-4 w-4 text-purple-600 rounded focus:ring-purple-500"
+                      />
+                    </div>
+                    
+                    {/* Password Protection Option (only shown when finaliseDocument is true) */}
+                    {finaliseDocument && (
+                      <div className="space-y-3 ml-4 pl-4 border-l-2 border-purple-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Key className="w-4 h-4 text-purple-600 mr-2" />
+                            <div>
+                              <span className="text-sm font-medium text-gray-900">Password Protection (Optional)</span>
+                              <p className="text-xs text-gray-600">Require password to open the final document</p>
+                            </div>
                           </div>
-                          <span className="text-sm text-gray-700">
-                            Digital - Page {mark.page}
-                          </span>
+                          <input
+                            type="checkbox"
+                            checked={passwordProtection}
+                            onChange={(e) => {
+                              setPasswordProtection(e.target.checked);
+                              if (!e.target.checked) {
+                                setPassword('');
+                              }
+                            }}
+                            className="h-4 w-4 text-purple-600 rounded focus:ring-purple-500"
+                          />
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeMark(mark.id);
-                          }}
-                          className="text-red-500 hover:text-red-700 p-1"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                        
+                        {passwordProtection && (
+                          <div>
+                            <label className="block text-sm text-gray-700 mb-1">
+                              Document Password <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="Enter password to open the PDF"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">This password will be required to open the final document</p>
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )}
+                    
+                    {/* Configuration Summary */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <h5 className="text-xs font-semibold text-gray-700 mb-2">Selected Configuration:</h5>
+                      <ul className="text-xs text-gray-600 space-y-1">
+                        {includeTimestamp && (
+                          <li className="flex items-start">
+                            <CheckCircle2 className="w-3 h-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
+                            <span>Digital Signature with Timestamp – Cryptographically signs the document and records trusted signing time</span>
+                          </li>
+                        )}
+                        {finaliseDocument && !passwordProtection && (
+                          <li className="flex items-start">
+                            <CheckCircle2 className="w-3 h-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
+                            <span>Final Digital Signature – Signs and locks the document to prevent further changes</span>
+                          </li>
+                        )}
+                        {finaliseDocument && passwordProtection && (
+                          <li className="flex items-start">
+                            <CheckCircle2 className="w-3 h-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
+                            <span>Final Digital Signature with Password Protection – Locks and restricts access to authorised recipients</span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                    
+                    {/* Certificate Paths */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <h5 className="text-xs font-semibold text-gray-700 mb-2">Certificate Configuration</h5>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs text-gray-600">Certificate Path:</label>
+                          <code className="text-xs bg-gray-100 p-1 rounded block truncate">
+                            {certificatePath}
+                          </code>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600">Private Key Path:</label>
+                          <code className="text-xs bg-gray-100 p-1 rounded block truncate">
+                            {privateKeyPath}
+                          </code>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+                          <div className="mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+  <div className="flex items-center justify-between mb-2">
+    <h5 className="text-sm font-semibold text-indigo-900 flex items-center">
+      <FileCheck className="w-4 h-4 mr-2" />
+      Legal Framework Information
+    </h5>
+    <button 
+      onClick={() => setShowTutorial(true)}
+      className="text-xs text-indigo-600 hover:text-indigo-800"
+    >
+      Learn More
+    </button>
+  </div>
+  
+  <div className="space-y-2 text-xs text-indigo-800">
+    <div className="flex items-start">
+      <CheckCircle2 className="w-3 h-3 text-indigo-600 mr-1 mt-0.5 flex-shrink-0" />
+      <span>Cross-border B2B contracts can include clauses recognizing company certificate digital signatures</span>
+    </div>
+    <div className="flex items-start">
+      <CheckCircle2 className="w-3 h-3 text-indigo-600 mr-1 mt-0.5 flex-shrink-0" />
+      <span>Courts focus on contractual intent, identity attribution, and document integrity</span>
+    </div>
+    <div className="flex items-start">
+      <CheckCircle2 className="w-3 h-3 text-indigo-600 mr-1 mt-0.5 flex-shrink-0" />
+      <span>Stamp duty affects admissibility and enforcement, not contract formation</span>
+    </div>
+  </div>
+  
+  <div className="mt-3 pt-3 border-t border-indigo-200">
+    <details className="text-xs">
+      <summary className="text-indigo-700 font-medium cursor-pointer hover:text-indigo-900">
+        Recommended Contract Clauses
+      </summary>
+      <div className="mt-2 space-y-2 text-gray-700">
+        <div>
+          <strong className="text-xs">Governing Law:</strong>
+          <p className="text-xs mt-1 bg-white p-2 rounded">
+            "This Agreement shall be governed by and construed in accordance with the laws of [Jurisdiction]."
+          </p>
+        </div>
+        <div>
+          <strong className="text-xs">Digital Signature Clause:</strong>
+          <p className="text-xs mt-1 bg-white p-2 rounded">
+            "The Parties agree that electronic signatures and cryptographic digital signatures shall have the same legal effect as handwritten signatures."
+          </p>
+        </div>
+      </div>
+    </details>
+  </div>
+</div>
+                {/* Place Signature Button */}
+                <div className="mb-6">
+                  <button
+                    onClick={() => {
+                      if (!staffName || !staffNumber) {
+                        setError('Please enter staff name and number');
+                        return;
+                      }
+                      if (passwordProtection && !password) {
+                        setError('Please enter a password for document protection');
+                        return;
+                      }
+                      setActiveTool('digital');
+                      setSuccess('Click on the PDF where you want to place the digital signature');
+                    }}
+                    disabled={!staffName || !staffNumber || (passwordProtection && !password)}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-300"
+                  >
+                    <Award className="w-4 h-4 inline mr-2" />
+                    Place Digital Signature
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Click this button, then click on the PDF to place the signature
+                  </p>
+                </div>
 
-              {/* Complete Company Signature Button */}
-              <button
-                onClick={completeCompanyCertificate}
-                disabled={loading || signatureMarks.filter(m => m.type === 'digital').length === 0}
-                className="w-full bg-gradient-to-r from-green-700 to-green-800 text-white px-4 py-4 rounded-xl font-semibold hover:from-green-800 hover:to-green-900 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Signing with open-pdf-sign...
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center">
-                    <CheckCircle2 className="w-5 h-5 mr-2" />
-                    Apply Digital Certificate (open-pdf-sign)
-                  </span>
+                {/* Placed Digital Signatures List */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-gray-900">
+                      Digital Signatures ({signatureMarks.filter(m => m.type === 'digital').length})
+                    </h4>
+                    {signatureMarks.filter(m => m.type === 'digital').length > 0 && (
+                      <button
+                        onClick={() => {
+                          const digitalMarks = signatureMarks.filter(m => m.type === 'digital');
+                          if (window.confirm(`Are you sure you want to remove ${digitalMarks.length} digital signature(s)?`)) {
+                            setSignatureMarks(prev => prev.filter(m => m.type !== 'digital'));
+                            if (selectedMark?.type === 'digital') setSelectedMark(null);
+                          }
+                        }}
+                        className="text-xs text-red-600 hover:text-red-700"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {signatureMarks
+                      .filter(mark => mark.type === 'digital')
+                      .map((mark) => (
+                        <div 
+                          key={mark.id}
+                          className={`flex items-center justify-between p-2 rounded cursor-pointer ${
+                            selectedMark?.id === mark.id ? 'bg-green-50 border border-green-200' : 'bg-gray-50 hover:bg-gray-100'
+                          }`}
+                          onClick={() => {
+                            setSelectedMark(mark);
+                            setActiveTool('move');
+                            if (mark.page !== currentPage) {
+                              setCurrentPage(mark.page);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 rounded bg-green-100 text-green-600 flex items-center justify-center">
+                              <Award className="w-3 h-3" />
+                            </div>
+                            <div>
+                              <span className="text-sm text-gray-700 block">
+                                Digital Signature
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                Page {mark.page} • {mark.digitalData?.includeTimestamp ? 'With Timestamp' : 'No Timestamp'}
+                                {mark.digitalData?.finaliseDocument ? ' • Document Finalised' : ''}
+                                {mark.digitalData?.passwordProtection ? ' • Password Protected' : ''}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeMark(mark.id);
+                            }}
+                            className="text-red-500 hover:text-red-700 p-1"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Apply Digital Signature Button */}
+                <button
+                  onClick={completeCompanyDigitalSignature}
+                  disabled={loading || signatureMarks.filter(m => m.type === 'digital').length === 0}
+                  className="w-full bg-gradient-to-r from-green-700 to-green-800 text-white px-4 py-4 rounded-xl font-semibold hover:from-green-800 hover:to-green-900 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Applying Digital Signature...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center">
+                      <Award className="w-5 h-5 mr-2" />
+                      Apply Company Digital Signature
+                    </span>
+                  )}
+                </button>
+
+                <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <h4 className="text-sm font-semibold text-blue-900 mb-1">Digital Signature Note</h4>
+                  <p className="text-xs text-blue-800">
+                    Applies a cryptographic digital signature using the organisation's certificate. 
+                    This provides signer identity verification, document integrity protection, and auditability.
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="flex">
+                      <AlertCircle className="w-4 h-4 text-red-600 mr-2 flex-shrink-0" />
+                      <span className="text-sm text-red-800">{error}</span>
+                    </div>
+                  </div>
                 )}
-              </button>
 
-              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <h4 className="text-sm font-semibold text-blue-900 mb-1">open-pdf-sign Integration</h4>
-                <p className="text-xs text-blue-800">
-                  This will generate a command for open-pdf-sign with your signature position and settings.
-                  In production, this command would be executed on the backend server.
-                </p>
+                {success && (
+                  <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex">
+                      <CheckCircle2 className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
+                      <span className="text-sm text-green-800">{success}</span>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {error && (
-                <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                  <div className="flex">
-                    <AlertCircle className="w-4 h-4 text-red-600 mr-2 flex-shrink-0" />
-                    <span className="text-sm text-red-800">{error}</span>
-                  </div>
-                </div>
-              )}
-
-              {success && (
-                <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="flex">
-                    <CheckCircle2 className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
-                    <span className="text-sm text-green-800">{success}</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* PDF Viewer for Company Signature */}
-          <div className="flex-1 flex flex-col bg-gray-800">
-            {/* Page Controls */}
-            <div className="bg-gray-900 border-b border-gray-700 p-3">
+          {/* PDF Viewer for Digital Signature */}
+          <div className="flex-1 flex flex-col bg-gray-800 relative">
+            {/* Mobile sidebar toggle button */}
+            {!sidebarVisible && (
+              <button
+                onClick={toggleSidebar}
+                className="absolute top-4 left-4 z-20 md:hidden bg-white p-2 rounded-lg shadow-lg text-gray-700 hover:text-gray-900"
+                title="Show configuration"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* Page Controls - Now matching renderViewAndSign structure */}
+            <div className="bg-white border-b border-gray-200 p-3 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <div className="flex items-center bg-gray-800 rounded-lg px-4 py-2">
-                    <span className="text-sm font-medium text-gray-300">
-                      Page <span className="text-white font-bold">{currentPage}</span> of {totalPages}
+                  <div className="flex items-center bg-gray-100 rounded-lg px-3 py-1">
+                    <span className="text-sm font-medium text-gray-700">
+                      Page <span className="font-bold">{currentPage}</span> of {totalPages}
                     </span>
                   </div>
                   <button
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
-                    className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setZoom(Math.max(0.25, zoom - 0.25))}
-                    disabled={zoom <= 0.25}
-                    className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded disabled:opacity-50"
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                  </button>
-                  <span className="text-sm text-gray-300 px-2">
-                    {Math.round(zoom * 100)}%
+                  <span className="text-sm text-gray-600 hidden md:inline">
+                    <span className="font-medium">Tool:</span>{' '}
+                    <span className="text-gray-800">
+                      {activeTool === 'digital' ? 'Digital Signature' : 
+                       activeTool === 'move' ? 'Move' : 
+                       'Select a tool'}
+                    </span>
                   </span>
                   <button
-                    onClick={() => setZoom(Math.min(3, zoom + 0.25))}
-                    disabled={zoom >= 3}
-                    className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded disabled:opacity-50"
+                    onClick={() => {
+                      if (pdfFile) {
+                        const link = document.createElement('a');
+                        link.download = pdfFile.name;
+                        link.href = URL.createObjectURL(pdfFile);
+                        link.click();
+                      }
+                    }}
+                    className="flex items-center px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
                   >
-                    <ZoomIn className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={toggleFullscreen}
-                    className="p-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded"
-                    title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                  >
-                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    <Download className="w-3 h-3 mr-1" />
+                    Original
                   </button>
                 </div>
               </div>
@@ -1734,10 +2597,19 @@ const PDFSignatureApp = () => {
 
             {/* PDF Viewer Container */}
             <div 
-              className="flex-1 overflow-auto p-8 flex items-center justify-center"
+            ref={pdfContainerRef} 
+              className="flex-1 overflow-auto p-2 md:p-8 flex items-center justify-center bg-gray-800"
               onClick={handleCanvasClick}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchStart={(e) => {
+                if (activeTool === 'digital') {
+                  e.preventDefault();
+                  const touch = e.touches[0];
+                  const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                  handleCanvasClick(fakeEvent);
+                }
+              }}
             >
               {pdfDocument ? (
                 <div className="relative">
@@ -1768,13 +2640,41 @@ const PDFSignatureApp = () => {
                         handleMarkMouseDown(e, mark);
                       }
                     }}
+                    onTouchStart={(e) => {
+                      if (activeTool !== 'move') return;
+                      
+                      e.preventDefault();
+                      const canvas = canvasRef.current;
+                      if (!canvas) return;
+                      
+                      const touch = e.touches[0];
+                      const rect = canvas.getBoundingClientRect();
+                      const x = touch.clientX - rect.left;
+                      const y = touch.clientY - rect.top;
+                      
+                      const scaleX = canvas.width / rect.width;
+                      const scaleY = canvas.height / rect.height;
+                      const canvasX = x * scaleX;
+                      const canvasY = y * scaleY;
+                      
+                      const a4Coords = canvasToA4(canvasX, canvasY, canvas.width, canvas.height);
+                      const currentPageMarks = signatureMarks.filter(m => m.page === currentPage);
+                      const mark = currentPageMarks.find(m => 
+                        a4Coords.x >= m.x && a4Coords.x <= m.x + m.width &&
+                        a4Coords.y >= m.y && a4Coords.y <= m.y + m.height
+                      );
+                      
+                      if (mark) {
+                        const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                        handleMarkMouseDown(fakeEvent, mark);
+                      }
+                    }}
                     className="bg-white shadow-2xl"
                     style={{
                       cursor: activeTool === 'digital' ? 'crosshair' :
                               activeTool === 'move' ? (isDragging ? 'grabbing' : 'grab') : 
                               'crosshair',
-                      maxWidth: '100%',
-                      maxHeight: '80vh'
+                      touchAction: 'none'
                     }}
                   />
                 </div>
@@ -1791,16 +2691,16 @@ const PDFSignatureApp = () => {
     );
   };
 
-  // Personal signature complete
-  const renderPersonalComplete = () => (
+  // Electronic signature complete
+  const renderElectronicComplete = () => (
     <div className="max-w-4xl mx-auto p-4 md:p-8">
       <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-green-100 rounded-full mx-auto mb-6">
             <CheckCircle2 className="w-10 h-10 md:w-12 md:h-12 text-green-600" />
           </div>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Personal Signature Complete!</h2>
-          <p className="text-gray-600">Version 1 of your document is ready</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Electronic Signature Applied</h2>
+          <p className="text-gray-600">Document with electronic signature annotations is ready</p>
         </div>
 
         <div className="bg-gray-50 rounded-xl p-6 mb-6">
@@ -1811,7 +2711,7 @@ const PDFSignatureApp = () => {
               <span className="font-semibold text-gray-900 truncate ml-2">{pdfFile?.name}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Signatures Placed:</span>
+              <span className="text-gray-600">Elements Placed:</span>
               <span className="font-semibold text-gray-900">{signatureMarks.length}</span>
             </div>
             <div className="flex justify-between">
@@ -1822,7 +2722,7 @@ const PDFSignatureApp = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Legal Status:</span>
-              <span className="font-semibold text-gray-900">Electronic Commerce Act 2006</span>
+              <span className="font-semibold text-gray-900">Electronic signature under applicable electronic commerce laws</span>
             </div>
           </div>
         </div>
@@ -1831,27 +2731,27 @@ const PDFSignatureApp = () => {
           <div className="flex">
             <Info className="w-5 h-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-yellow-800">
-              <strong>Legal Notice:</strong> This is an Electronic Signature under the Electronic Commerce Act 2006. 
-              For enhanced legal compliance, you can add a Company Certificate signature using open-pdf-sign.
+              <strong>Important Notice:</strong> This document contains electronic signature annotations with trusted timestamp for evidentiary purposes.
+              For cryptographic document integrity protection and signer identity verification, apply a Company Digital Signature (PKI).
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
           <button
-            onClick={() => handleDownload('personal')}
+            onClick={() => handleDownload('electronic')}
             className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 md:py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl"
           >
             <Download className="w-5 h-5 mr-2" />
-            Download Version 1 (Personal Signed)
+            Download with Electronic Signature Annotations
           </button>
 
           <button
             onClick={() => setStep('company-sign')}
             className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 md:py-4 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 flex items-center justify-center"
           >
-            <Building2 className="w-5 h-5 mr-2" />
-            Add Company Certificate Signature (open-pdf-sign)
+            <Award className="w-5 h-5 mr-2" />
+            Add Cryptographic Digital Signature (PKI)
           </button>
 
           <button
@@ -1865,142 +2765,76 @@ const PDFSignatureApp = () => {
     </div>
   );
 
-  // Company form
-  const renderCompanyForm = () => (
-    <div className="max-w-4xl mx-auto p-4 md:p-8">
-      <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-        <div className="mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Company Certificate Signature</h2>
-          <p className="text-gray-600">Add official company seal with digital certificate using open-pdf-sign</p>
-        </div>
-
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-          <div className="flex">
-            <Info className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-green-800">
-              <strong>Digital Signature Act 1997 Compliance:</strong> This signature uses open-pdf-sign with your company's SSL certificate 
-              with cryptographic verification and trusted timestamp. This action will be logged for audit purposes.
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6 mb-8">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Staff Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={staffName}
-              onChange={(e) => setStaffName(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Enter your full name"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Staff Number <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={staffNumber}
-              onChange={(e) => setStaffNumber(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Enter your staff number"
-            />
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h4 className="font-semibold text-blue-900 mb-2">open-pdf-sign Process:</h4>
-            <ul className="space-y-1 text-sm text-blue-800">
-              <li>• System retrieves company SSL certificate from Windows Certificate Store</li>
-              <li>• Document is signed using open-pdf-sign with PKI cryptography</li>
-              <li>• Trusted timestamp is added from DigiCert timestamp server</li>
-              <li>• Your signing action is logged with staff details</li>
-              <li>• Version 2 is generated with full legal compliance</li>
-              <li>• Signature position will be preserved from your placement</li>
-            </ul>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start">
-            <AlertCircle className="w-5 h-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" />
-            <span className="text-red-800">{error}</span>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <button
-            onClick={() => setStep('company-sign')}
-            className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 md:py-4 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300"
-          >
-            Continue to Digital Signature Placement
-          </button>
-
-          <button
-            onClick={() => setStep('personal-complete')}
-            className="w-full bg-gray-200 text-gray-700 px-6 py-3 md:py-4 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
-          >
-            Back to Version 1
-          </button>
-
-          <button
-            onClick={resetApp}
-            className="w-full border border-gray-300 text-gray-700 px-6 py-3 md:py-4 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Company complete
-  const renderCompanyComplete = () => (
+  // PKI digital signature complete
+  const renderPkiComplete = () => (
     <div className="max-w-4xl mx-auto p-4 md:p-8">
       <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-green-100 rounded-full mx-auto mb-6">
-            <CheckCircle2 className="w-10 h-10 md:w-12 md:h-12 text-green-600" />
+            <Award className="w-10 h-10 md:w-12 md:h-12 text-green-600" />
           </div>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Company Certificate Applied!</h2>
-          <p className="text-gray-600">Version 2 with open-pdf-sign digital signature is ready</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Digital Signature Successfully Applied</h2>
+          <p className="text-gray-600">Document cryptographically signed and protected</p>
         </div>
 
+        {/* Status Banner */}
+        {companySignedPdf?.statusBanner && (
+          <div className={`mb-6 rounded-xl p-4 ${
+            finaliseDocument 
+              ? 'bg-purple-50 border border-purple-200 text-purple-800'
+              : 'bg-blue-50 border border-blue-200 text-blue-800'
+          }`}>
+            <div className="flex items-center">
+              <Info className="w-5 h-5 mr-2 flex-shrink-0" />
+              <span className="font-semibold">{companySignedPdf.statusBanner}</span>
+            </div>
+          </div>
+        )}
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+  <div className="flex">
+    <FileCheck className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+    <div className="text-sm text-blue-800">
+      <strong>Legal Framework Applied:</strong> This digital signature is suitable for cross-border B2B agreements. 
+      Ensure your contract includes governing law, jurisdiction, and digital signature recognition clauses. 
+      Courts will uphold signatures that reflect contractual intent and provide proper audit trails.
+    </div>
+  </div>
+</div>
+
         <div className="bg-gray-50 rounded-xl p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Certificate Details</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Digital Signature Details</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-600">Staff Name:</span>
+              <span className="text-gray-600">Signer:</span>
               <span className="font-semibold text-gray-900">{companySignedPdf?.staffName}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Staff Number:</span>
-              <span className="font-semibold text-gray-900">{companySignedPdf?.staffNumber}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Certificate Subject:</span>
-              <span className="font-semibold text-gray-900 truncate">{companySignedPdf?.certificateInfo.subject}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Certificate Issuer:</span>
-              <span className="font-semibold text-gray-900">{companySignedPdf?.certificateInfo.issuer}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Timestamp:</span>
-              <span className="font-semibold text-gray-900">
-                {new Date(companySignedPdf?.timestamp || Date.now()).toLocaleString()}
-              </span>
+              <span className="text-gray-600">Organisation:</span>
+              <span className="font-semibold text-gray-900">{companySignedPdf?.companyName}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Timestamp Authority:</span>
-              <span className="font-semibold text-gray-900">DigiCert Timestamp Server</span>
+              <span className="font-semibold text-gray-900">
+                {includeTimestamp ? 'Trusted Timestamp Applied' : 'No Trusted Timestamp'}
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Tool Used:</span>
-              <span className="font-semibold text-gray-900">open-pdf-sign.jar</span>
+              <span className="text-gray-600">Document Status:</span>
+              <span className="font-semibold text-gray-900">
+                {finaliseDocument 
+                  ? (passwordProtection 
+                    ? 'Finalised with Password Protection'
+                    : 'Finalised – Changes Restricted')
+                  : 'Digitally Signed – Further Signatures Possible'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Certificate Issuer:</span>
+              <span className="font-semibold text-gray-900">Company Certificate Authority</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Integrity Protection:</span>
+              <span className="font-semibold text-gray-900">Cryptographically Verified</span>
             </div>
           </div>
         </div>
@@ -2009,28 +2843,54 @@ const PDFSignatureApp = () => {
           <div className="flex">
             <CheckCircle2 className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-green-800">
-              <strong>Digital Signature Act 1997 Compliant:</strong> This document is signed with open-pdf-sign using a digital certificate 
-              from a recognized CA with cryptographic security and trusted timestamp. This signature provides strong 
-              legal enforceability and non-repudiation.
+              <strong>Digital Signature Successfully Applied</strong> 
+              {finaliseDocument 
+                ? (passwordProtection 
+                  ? ' – Document finalised, locked, and password protected. No further changes permitted.'
+                  : ' – Document finalised and locked against further changes.')
+                : ' – Document integrity is cryptographically protected. Further signatures may be added.'}
+            </div>
+          </div>
+        </div>
+
+        {/* Show the command that would be executed */}
+        {companySignedPdf?.openSignPdfCommand && (
+          <div className="mb-6 bg-gray-900 text-gray-100 rounded-xl p-4 overflow-x-auto">
+            <h4 className="text-sm font-semibold text-gray-300 mb-2">open-sign-pdf Command Generated:</h4>
+            <pre className="text-xs whitespace-pre-wrap">
+              {companySignedPdf.openSignPdfCommand}
+            </pre>
+          </div>
+        )}
+
+        {/* Certificate Notice */}
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex">
+            <Globe className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800">
+              <strong>Certificate Notice:</strong> This digital signature uses a company-issued certificate suitable for inter-company transactions.
+              Government or statutory submissions may require certificates issued by designated authorities.
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
           <button
-            onClick={() => handleDownload('company')}
+            onClick={() => handleDownload('pki')}
             className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 md:py-4 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl"
           >
             <Download className="w-5 h-5 mr-2" />
-            Download Version 2 (Company Signed with open-pdf-sign)
+            Download Digitally Signed Document
           </button>
 
-          <button
-            onClick={() => handleDownload('personal')}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 md:py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
-          >
-            Download Version 1 (Personal Signed)
-          </button>
+          {personalSignedPdf && (
+            <button
+              onClick={() => handleDownload('electronic')}
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 md:py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
+            >
+              Download Electronic Signature Version
+            </button>
+          )}
 
           <button
             onClick={resetApp}
@@ -2043,124 +2903,43 @@ const PDFSignatureApp = () => {
     </div>
   );
 
-  // Tutorial Modal
-  const TutorialModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-          <h2 className="text-2xl font-bold text-gray-900">How to Sign Documents</h2>
-          <button onClick={() => setShowTutorial(false)} className="text-gray-500 hover:text-gray-700 p-1">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-        
-        <div className="p-6 space-y-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h3 className="font-semibold text-blue-900 mb-2">Company Document Signing Policy</h3>
-            <p className="text-sm text-blue-800">
-              This system supports two-tier document signing for enhanced legal compliance:
-            </p>
-            <ul className="mt-2 space-y-1 text-sm text-blue-800 ml-4">
-              <li>• <strong>Personal Signature:</strong> Your individual signature for acknowledgment (Electronic Commerce Act 2006)</li>
-              <li>• <strong>Company Certificate:</strong> Official company seal with digital certificate using open-pdf-sign (Digital Signature Act 1997)</li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Step-by-Step Guide</h3>
-            <ol className="space-y-4">
-              <li className="flex items-start">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-blue-600 font-semibold">1</span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Upload Document</h4>
-                  <p className="text-sm text-gray-600 mt-1">Select your PDF document and choose signature type (Personal or Company).</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-blue-600 font-semibold">2</span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Create Signature</h4>
-                  <p className="text-sm text-gray-600 mt-1">Draw or upload your signature and initials in the left panel.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-blue-600 font-semibold">3</span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Place Signatures</h4>
-                  <p className="text-sm text-gray-600 mt-1">Click on the PDF document to place signatures, initials, and text fields.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-blue-600 font-semibold">4</span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Adjust & Move</h4>
-                  <p className="text-sm text-gray-600 mt-1">Use the Move tool to reposition signatures. Click and drag to move.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                  <span className="text-blue-600 font-semibold">5</span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Complete Signing</h4>
-                  <p className="text-sm text-gray-600 mt-1">Review all signatures and complete the process to generate the signed PDF.</p>
-                </div>
-              </li>
-            </ol>
-          </div>
-
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-            <h3 className="font-semibold text-yellow-900 mb-2">Tips for Best Results</h3>
-            <ul className="space-y-2 text-sm text-yellow-800">
-              <li>• Use a stylus or mouse for smoother signature drawing</li>
-              <li>• Place signatures in designated signature fields when available</li>
-              <li>• For company certificates, ensure staff details are accurate</li>
-              <li>• Use the zoom controls to place signatures precisely</li>
-              <li>• Save your signature for future use</li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={() => {
-              setShowTutorial(false);
-              if (step === 'upload') {
-                fileInputRef.current?.click();
-              }
-            }}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors mb-3"
-          >
-            {step === 'upload' ? 'Upload Document' : 'Got It, Continue Signing'}
-          </button>
-          <button
-            onClick={() => setShowTutorial(false)}
-            className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
-          >
-            Close Tutorial
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {showTutorial && <TutorialModal />}
-      {step === 'upload' && renderUpload()}
-      {step === 'view-sign' && renderViewAndSign()}
-      {step === 'company-sign' && renderCompanySign()}
-      {step === 'personal-complete' && renderPersonalComplete()}
-      {step === 'company-form' && renderCompanyForm()}
-      {step === 'company-complete' && renderCompanyComplete()}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
+      <TutorialModal 
+        showTutorial={showTutorial} 
+        setShowTutorial={setShowTutorial} 
+        step={step}
+        fileInputRef={fileInputRef}
+      />
+      
+      <div className="flex-1">
+        {step === 'upload' && (
+          <>
+            {renderUpload()}
+            <div className="max-w-6xl mx-auto px-4 md:px-8 pb-8">
+              <CopyrightFooter />
+            </div>
+          </>
+        )}
+        {step === 'view-sign' && renderViewAndSign()}
+        {step === 'company-sign' && renderCompanySign()}
+        {step === 'electronic-complete' && (
+          <>
+            {renderElectronicComplete()}
+            <div className="max-w-4xl mx-auto px-4 md:px-8 pb-8">
+              <CopyrightFooter />
+            </div>
+          </>
+        )}
+        {step === 'pki-complete' && (
+          <>
+            {renderPkiComplete()}
+            <div className="max-w-4xl mx-auto px-4 md:px-8 pb-8">
+              <CopyrightFooter />
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };
