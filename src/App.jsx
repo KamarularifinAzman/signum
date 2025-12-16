@@ -1851,10 +1851,9 @@ const toggleFullscreen = () => {
           <div 
             className={`${sidebarVisible ? 'flex' : 'hidden'} md:flex w-full md:w-96 bg-white border-r border-gray-200 flex-col absolute md:relative z-10 h-full`}
             style={{ 
-              maxWidth: sidebarVisible ? '100%' : '0', 
               transition: 'max-width 0.3s ease-in-out',
               width: '100%',
-              maxWidth: '24rem'
+              maxWidth: sidebarVisible ? '24rem' : '0'
             }}
             >
             <div className="p-4 border-b border-gray-200 flex-shrink-0">
@@ -2479,8 +2478,8 @@ const toggleFullscreen = () => {
             style={{ 
               maxWidth: sidebarVisible ? '100%' : '0', 
               transition: 'max-width 0.3s ease-in-out',
-              width: '100%',
-              maxWidth: '24rem'
+              //width: '100%',
+              //maxWidth: '24rem'
             }}
             >
             <div className="h-full flex flex-col">
