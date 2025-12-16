@@ -342,8 +342,282 @@ const TutorialModal = ({ showTutorial, setShowTutorial, step, fileInputRef }) =>
   );
 };
 
+// Legal Framework Modal Component
+const LegalFrameworkModal = ({ showLegalModal, setShowLegalModal }) => {
+  if (!showLegalModal) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Legal Framework & Terms of Service</h2>
+              <p className="text-sm text-gray-600">Global Legal Framework for Electronic & Digital Signatures</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setShowLegalModal(false)} 
+            className="text-gray-500 hover:text-gray-700 p-1"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-8">
+            {/* Legal Framework Content */}
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">1. Legal Basis and General Recognition</h3>
+              <div className="text-gray-700 space-y-2">
+                <p>This platform enables the application of electronic signatures and cryptographic digital signatures in accordance with internationally recognised principles of electronic commerce, including the UNCITRAL Model Law on Electronic Commerce and the UNCITRAL Model Law on Electronic Signatures, as implemented under applicable national laws.</p>
+                <p>Electronic and digital signatures applied through this platform shall not be denied legal effect or enforceability solely on the grounds that they are in electronic form, subject to compliance with mandatory local legal requirements.</p>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">2. Signature Types Supported</h3>
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-2">a. Electronic Signatures</h4>
+                  <p className="text-blue-800">Electronic signatures, including drawn, uploaded, or typed signatures, may be used where permitted by applicable electronic commerce legislation. Such signatures evidence the signatory's intent to authenticate the document but do not inherently provide cryptographic integrity protection.</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-green-900 mb-2">b. Cryptographic Digital Signatures (PKI)</h4>
+                  <p className="text-green-800">Cryptographic digital signatures applied using valid digital certificates provide enhanced assurance by:</p>
+                  <ul className="list-disc pl-5 mt-2 text-green-800 space-y-1">
+                    <li>Cryptographically binding the signer to the document</li>
+                    <li>Detecting post-signature modification</li>
+                    <li>Supporting auditability and non-repudiation</li>
+                  </ul>
+                  <p className="mt-2 text-green-800">The legal effect of such signatures depends on the certificate framework, trust service provider, and applicable law.</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Add remaining sections here following same pattern */}
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">3. Contractual Consent and Intent</h3>
+              <p className="text-gray-700">By using this platform, parties expressly consent to conduct transactions electronically and agree that electronic and digital signatures may be used to indicate contractual intent, subject to applicable law.</p>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">4. Cross-Border and Inter-Company Transactions</h3>
+              <p className="text-gray-700">For cross-border or inter-company agreements, parties are strongly advised to include express clauses addressing governing law and jurisdiction, mutual recognition of electronic and digital signatures, and acceptance of certificates issued by recognised or mutually agreed certificate authorities.</p>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">5. Jurisdiction-Specific Requirements</h3>
+              <p className="text-gray-700">Certain jurisdictions impose additional requirements for specific transaction types or signature assurance levels. Users are responsible for ensuring that the chosen signature method complies with applicable local legal requirements.</p>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">6. Government and Statutory Filings</h3>
+              <p className="text-gray-700">Submissions to government bodies, courts, or statutory authorities may require digital certificates issued by officially designated or accredited authorities.</p>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">7. Evidence and Auditability</h3>
+              <p className="text-gray-700">The platform maintains technical records to support evidentiary requirements. The admissibility and evidential weight of such records are determined by applicable law and procedural rules.</p>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">8. Stamp Duty and Formalities</h3>
+              <p className="text-gray-700">Where applicable, stamp duty, registration, or filing requirements may affect the enforceability of a signed document but do not, in principle, invalidate the formation of the agreement itself, subject to local law.</p>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">9. Limitation of Legal Assurance</h3>
+              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                <p className="text-yellow-800"><strong>Important:</strong> This platform provides technical tools for applying electronic and digital signatures but does not provide legal advice. Legal validity and enforceability depend on the nature of the transaction, the parties involved, and applicable laws.</p>
+                <p className="mt-2 text-yellow-800">Users should obtain independent legal advice for transactions involving regulatory, statutory, or cross-border legal risk.</p>
+              </div>
+            </section>
+
+            {/* Terms of Service Section */}
+            <section className="border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Terms of Service</h3>
+              <div className="text-gray-700 space-y-3">
+                <p>By using this platform, you agree to:</p>
+                <ul className="list-disc pl-5 space-y-2">
+                  <li>Use the platform in accordance with all applicable laws and regulations</li>
+                  <li>Ensure you have the legal authority to sign documents on behalf of yourself or your organization</li>
+                  <li>Maintain the confidentiality of your certificate passwords and private keys</li>
+                  <li>Verify that electronic or digital signatures are legally acceptable for your specific use case</li>
+                  <li>Acknowledge that this is a demonstration application for technical evaluation purposes</li>
+                </ul>
+              </div>
+            </section>
+          </div>
+        </div>
+        
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <button
+            onClick={() => setShowLegalModal(false)}
+            className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+          >
+            Acknowledge & Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Data Privacy Policy Modal Component
+const DataPrivacyModal = ({ showPrivacyModal, setShowPrivacyModal }) => {
+  if (!showPrivacyModal) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mr-3">
+              <Shield className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Data Privacy Policy</h2>
+              <p className="text-sm text-gray-600">Privacy and Data Handling Information</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setShowPrivacyModal(false)} 
+            className="text-gray-500 hover:text-gray-700 p-1"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
+            {/* Data Privacy Content */}
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <h3 className="font-semibold text-green-900 mb-2">Important Privacy Notice</h3>
+              <p className="text-green-800">
+                This is a <strong>static web application</strong> that runs entirely in your browser. 
+                We do not collect, store, or transmit any user data to external servers.
+              </p>
+            </div>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Data Handling Principles</h3>
+              <div className="space-y-4">
+                <div className="flex items-start">
+                  <div className="bg-gray-100 text-gray-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-1">
+                    <Lock className="w-3 h-3" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">Local Processing Only</h4>
+                    <p className="text-gray-700 text-sm">
+                      All document processing, signature creation, and PDF operations occur locally in your browser. 
+                      No files or personal data are uploaded to any server.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <div className="bg-gray-100 text-gray-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-1">
+                    <Building2 className="w-3 h-3" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">Self-Hosted Deployment</h4>
+                    <p className="text-gray-700 text-sm">
+                      This application is designed to be published at your own domain. 
+                      When self-hosted, you control all aspects of data handling and logging.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <div className="bg-gray-100 text-gray-600 rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0 mt-1">
+                    <FileText className="w-3 h-3" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">Audit Logging</h4>
+                    <p className="text-gray-700 text-sm">
+                      Log collection for audit purposes is based on how you configure nxlog on your server. 
+                      No automatic logging occurs within the application itself.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Purpose and Source Code</h3>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-blue-800">
+                  This application is a <strong>demonstration platform</strong> for electronic and digital signature technologies. 
+                  It is not intended for production use without proper security assessment and compliance verification.
+                </p>
+                <div className="mt-3">
+                  <a 
+                    href="https://github.com/KamarularifinAzman/signum" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    View Source Code on GitHub
+                  </a>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-gray-700 mb-2">For questions about this application:</p>
+                <a 
+                  href="https://www.linkedin.com/in/kamarularifin-azman/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
+                  Kamarularifin Azman on LinkedIn
+                </a>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Security Considerations</h3>
+              <div className="text-gray-700 space-y-2">
+                <p>When deploying this application:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Ensure proper HTTPS configuration for production use</li>
+                  <li>Secure your certificate and private key storage</li>
+                  <li>Implement appropriate logging and monitoring</li>
+                  <li>Regularly update dependencies for security patches</li>
+                  <li>Conduct security assessments before production deployment</li>
+                </ul>
+              </div>
+            </section>
+          </div>
+        </div>
+        
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <button
+            onClick={() => setShowPrivacyModal(false)}
+            className="w-full px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors"
+          >
+            Close Privacy Policy
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Copyright Footer Component - MOVED OUTSIDE
-const CopyrightFooter = () => (
+// Update CopyrightFooter component to accept props
+const CopyrightFooter = ({ onOpenLegal, onOpenPrivacy, onOpenContact }) => (
   <div className="mt-8 pt-6 border-t border-gray-200">
     <div className="text-center text-gray-500 text-sm">
       <div className="flex flex-col md:flex-row items-center justify-center space-y-2 md:space-y-0 md:space-x-6">
@@ -356,19 +630,35 @@ const CopyrightFooter = () => (
         </div>
         <div className="hidden md:block">•</div>
         <div className="flex items-center justify-center space-x-4">
-          <a href="#" className="text-blue-600 hover:text-blue-800 transition-colors">
-            Legal Framework
-          </a>
+          <button 
+            onClick={onOpenLegal}
+            className="text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            Legal Framework & Terms
+          </button>
           <span className="text-gray-400">|</span>
-          <a href="#" className="text-blue-600 hover:text-blue-800 transition-colors">
+          <button 
+            onClick={onOpenPrivacy}
+            className="text-blue-600 hover:text-blue-800 transition-colors"
+          >
             Privacy Policy
+          </button>
+          <span className="text-gray-400">|</span>
+          <a 
+            href="https://github.com/KamarularifinAzman/signum" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            Source Code
           </a>
           <span className="text-gray-400">|</span>
-          <a href="#" className="text-blue-600 hover:text-blue-800 transition-colors">
-            Terms of Service
-          </a>
-          <span className="text-gray-400">|</span>
-          <a href="#" className="text-blue-600 hover:text-blue-800 transition-colors">
+          <a 
+            href="https://www.linkedin.com/in/kamarularifin-azman/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 transition-colors"
+          >
             Contact Support
           </a>
         </div>
@@ -379,10 +669,22 @@ const CopyrightFooter = () => (
         For cross-border B2B agreements, include governing law, jurisdiction, and digital signature recognition clauses.
         Government submissions may require designated authority certificates.
       </div>
-      <div className="mt-1 text-xs text-gray-500 bg-gray-50 p-2 rounded max-w-2xl mx-auto">
-        <strong>Legal Note:</strong> In cross-border B2B contracts, parties can agree to recognize digital signatures using company certificates. 
-        Courts focus on contractual intent, identity attribution, and document integrity. 
-        Stamp duty affects enforcement, not contract formation.
+      <div className="mt-3 text-xs text-gray-600 bg-gray-50 p-3 rounded max-w-2xl mx-auto">
+        <div className="flex items-center justify-between">
+          <div>
+            <strong>Application Type:</strong> Static Web App (Client-side only) • 
+            <strong> Data Collection:</strong> None • 
+            <strong> Deployment:</strong> Self-hosted at your domain
+          </div>
+          <a 
+            href="https://github.com/KamarularifinAzman/signum" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 ml-2"
+          >
+            View on GitHub
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -390,6 +692,11 @@ const CopyrightFooter = () => (
 
 // Main Component
 const PDFSignatureApp = () => {
+  // In the main component state section, add:
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showPrivacyBanner, setShowPrivacyBanner] = useState(true); 
+
   // State management
   const [step, setStep] = useState('upload');
   const [pdfFile, setPdfFile] = useState(null);
@@ -498,6 +805,53 @@ const PDFSignatureApp = () => {
       setError('Please upload a valid PDF file (PDF format only)');
     }
   };
+// Privacy Banner Component
+const PrivacyBanner = ({ showPrivacyBanner, setShowPrivacyBanner, setShowPrivacyModal, setShowLegalModal }) => {
+  if (!showPrivacyBanner) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-blue-600 text-white p-3 z-40 shadow-lg">
+      <div className="container mx-auto px-4">
+        <div className="flex flex-col md:flex-row items-center justify-between">
+          <div className="mb-3 md:mb-0 md:mr-4 flex-1">
+            <p className="text-sm">
+              <strong>Privacy Notice:</strong> This is a static web app that runs locally in your browser. 
+              No user data is collected or transmitted. For audit logs, configure nxlog on your server. 
+              <a 
+                href="https://github.com/KamarularifinAzman/signum" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline ml-2"
+              >
+                View source code
+              </a>
+            </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setShowPrivacyModal(true)}
+              className="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1 rounded transition-colors"
+            >
+              Privacy Policy
+            </button>
+            <button 
+              onClick={() => setShowLegalModal(true)}
+              className="text-sm bg-blue-700 hover:bg-blue-800 px-3 py-1 rounded transition-colors"
+            >
+              Legal Framework
+            </button>
+            <button 
+              onClick={() => setShowPrivacyBanner(false)}
+              className="text-sm bg-blue-800 hover:bg-blue-900 px-3 py-1 rounded transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
   // Render signature marks with updated text - MOVED BEFORE useEffect
   const renderSignatureMarks = useCallback((context, viewport) => {
@@ -1310,6 +1664,12 @@ const toggleFullscreen = () => {
       <strong>Legal Framework:</strong> Company-issued digital certificates are recognised for inter-company transactions under private international law and UNCITRAL principles. 
       For cross-border B2B agreements, include governing law, jurisdiction, and digital signature recognition clauses. 
       Government or statutory submissions may require certificates issued by designated authorities.
+      <button 
+        onClick={() => setShowLegalModal(true)}
+        className="ml-2 text-blue-700 underline hover:text-blue-900"
+      >
+        View full legal framework
+      </button>
     </div>
   </div>
 </div>
@@ -2341,15 +2701,22 @@ const toggleFullscreen = () => {
                           <div className="mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
   <div className="flex items-center justify-between mb-2">
     <h5 className="text-sm font-semibold text-indigo-900 flex items-center">
-      <FileCheck className="w-4 h-4 mr-2" />
       Legal Framework Information
     </h5>
-    <button 
-      onClick={() => setShowTutorial(true)}
-      className="text-xs text-indigo-600 hover:text-indigo-800"
-    >
-      Learn More
-    </button>
+    <div className="space-x-2">
+      <button 
+        onClick={() => setShowTutorial(true)}
+        className="text-xs text-indigo-600 hover:text-indigo-800"
+      >
+        Tutorial
+      </button>
+      <button 
+        onClick={() => setShowLegalModal(true)}
+        className="text-xs text-indigo-600 hover:text-indigo-800"
+      >
+        Full Legal Info
+      </button>
+    </div>
   </div>
   
   <div className="space-y-2 text-xs text-indigo-800">
@@ -2903,25 +3270,48 @@ const toggleFullscreen = () => {
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
-      <TutorialModal 
-        showTutorial={showTutorial} 
-        setShowTutorial={setShowTutorial} 
-        step={step}
-        fileInputRef={fileInputRef}
-      />
-      
-      <div className="flex-1">
-        {step === 'upload' && (
-          <>
-            {renderUpload()}
-            <div className="max-w-6xl mx-auto px-4 md:px-8 pb-8">
-              <CopyrightFooter />
-            </div>
-          </>
-        )}
-        {step === 'view-sign' && renderViewAndSign()}
+  // Update the return statement in the main component:
+return (
+  <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
+    <TutorialModal 
+      showTutorial={showTutorial} 
+      setShowTutorial={setShowTutorial} 
+      step={step}
+      fileInputRef={fileInputRef}
+    />
+    
+    <LegalFrameworkModal 
+      showLegalModal={showLegalModal}
+      setShowLegalModal={setShowLegalModal}
+    />
+    
+    <DataPrivacyModal 
+      showPrivacyModal={showPrivacyModal}
+      setShowPrivacyModal={setShowPrivacyModal}
+    />
+    
+    {showPrivacyBanner && (
+  <PrivacyBanner 
+    showPrivacyBanner={showPrivacyBanner}
+    setShowPrivacyBanner={setShowPrivacyBanner}
+    setShowPrivacyModal={setShowPrivacyModal}
+    setShowLegalModal={setShowLegalModal}
+  />
+)}
+    
+    <div className="flex-1">
+      {step === 'upload' && (
+        <>
+          {renderUpload()}
+          <div className="max-w-6xl mx-auto px-4 md:px-8 pb-8">
+            <CopyrightFooter 
+              onOpenLegal={() => setShowLegalModal(true)}
+              onOpenPrivacy={() => setShowPrivacyModal(true)}
+            />
+          </div>
+        </>
+      )}
+      {step === 'view-sign' && renderViewAndSign()}
         {step === 'company-sign' && renderCompanySign()}
         {step === 'electronic-complete' && (
           <>
@@ -2941,7 +3331,7 @@ const toggleFullscreen = () => {
         )}
       </div>
     </div>
-  );
+);
 };
 
 export default PDFSignatureApp;
