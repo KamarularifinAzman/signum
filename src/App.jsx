@@ -245,7 +245,7 @@ const TutorialModal = ({ showTutorial, setShowTutorial, step, fileInputRef }) =>
       
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
         <p className="text-sm text-yellow-800">
-          <strong>Key Legal Note:</strong> Digital signatures using company certificates are generally recognized in cross-border B2B transactions under private international law and UNCITRAL principles, provided parties have contractual intent.
+          <strong>Key Legal Note:</strong> Digital signatures using company certificates are generally recognised in cross-border B2B transactions under private international law and UNCITRAL principles, provided parties have contractual intent.
         </p>
       </div>
     </div>
@@ -433,7 +433,8 @@ const LegalFrameworkModal = ({ showLegalModal, setShowLegalModal }) => {
               <h3 className="text-lg font-semibold text-gray-900 mb-3">9. Limitation of Legal Assurance</h3>
               <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                 <p className="text-yellow-800"><strong>Important:</strong> This platform provides technical tools for applying electronic and digital signatures but does not provide legal advice. Legal validity and enforceability depend on the nature of the transaction, the parties involved, and applicable laws.</p>
-                <p className="mt-2 text-yellow-800">Users should obtain independent legal advice for transactions involving regulatory, statutory, or cross-border legal risk.</p>
+                <p className="mt-2 text-yellow-800">Users should obtain independent legal advice for transactions involving regulatory, statutory, or cross-border legal risk. </p>
+                  <p className="mt-2 text-yellow-800">The legal effect and evidential weight of any signature depend on applicable law, the transaction context, and the reliability of the signing method used.</p>
               </div>
             </section>
 
@@ -444,7 +445,7 @@ const LegalFrameworkModal = ({ showLegalModal, setShowLegalModal }) => {
                 <p>By using this platform, you agree to:</p>
                 <ul className="list-disc pl-5 space-y-2">
                   <li>Use the platform in accordance with all applicable laws and regulations</li>
-                  <li>Ensure you have the legal authority to sign documents on behalf of yourself or your organization</li>
+                  <li>Ensure you have the legal authority to sign documents on behalf of yourself or your organisation</li>
                   <li>Maintain the confidentiality of your certificate passwords and private keys</li>
                   <li>Verify that electronic or digital signatures are legally acceptable for your specific use case</li>
                   <li>Acknowledge that this is a demonstration application for technical evaluation purposes</li>
@@ -2721,7 +2722,7 @@ const toggleFullscreen = () => {
   <div className="space-y-2 text-xs text-indigo-800">
     <div className="flex items-start">
       <CheckCircle2 className="w-3 h-3 text-indigo-600 mr-1 mt-0.5 flex-shrink-0" />
-      <span>Cross-border B2B contracts can include clauses recognizing company certificate digital signatures</span>
+      <span>Cross-border B2B contracts can include clauses recognising company certificate digital signatures</span>
     </div>
     <div className="flex items-start">
       <CheckCircle2 className="w-3 h-3 text-indigo-600 mr-1 mt-0.5 flex-shrink-0" />
