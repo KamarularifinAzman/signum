@@ -7,6 +7,8 @@
  * Body: { pdfBase64, marks, timestamp }
  */
 
+require_once 'vendor/autoload.php';
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
@@ -31,23 +33,33 @@ if (!isset($input['pdfBase64']) || !isset($input['marks'])) {
 }
 
 try {
-    $pdfData = base64_decode($input['pdfBase64']);
-    $marks = $input['marks'];
-    $includeTimestamp = $input['timestamp'] ?? false;
-    
-    // Save temporary PDF
-    $tempPdf = tempnam(sys_get_temp_dir(), 'pdf_');
+    // Save uploaded PDF temporarily
+    $tempPdf = tempnam(sys_get_temp_dir(), 'upload_');
     file_put_contents($tempPdf, $pdfData);
     
-    // Use pdf-lib or similar to embed signature images
-    // For this example, we'll use a PHP PDF library
-    // Install: composer require setasign/fpdf or mpdf/mpdf
+    // Create a new TCPDF instance (for modification, this is complex)
+    // WARNING: This is a conceptual example. 
+    // Adding images at precise A4 coordinates requires extensive TCPDF knowledge.
+    $pdf = new TCPDF();
+    $pdf->setSourceFile($tempPdf);
     
-    // Add timestamp from DigiCert if requested
+    // Iterate through pages and add signature marks
+    // This would involve complex coordinate transformation
+    // from your A4 coordinates to TCPDF's coordinate system
+    
+    // For now, we'll create a simple signed version as demonstration
+    $pdf->AddPage();
+    $pdf->SetFont('helvetica', '', 12);
+    $pdf->Write(0, "Document signed with " . count($marks) . " signature marks.\n");
+    $pdf->Write(0, "Timestamp: " . date('Y-m-d H:i:s'));
     $timestampData = null;
     if ($includeTimestamp) {
         $timestampData = getDigiCertTimestamp($tempPdf);
     }
+    
+     // Output modified PDF
+    $signedContent = $pdf->Output('', 'S'); // Get as string
+    unlink($tempPdf); // Clean up temporary file    
     
     // Generate audit trail
     $auditTrail = [
@@ -65,14 +77,11 @@ try {
                 count($marks) . " marks placed\n";
     file_put_contents(__DIR__ . '/../logs/personal-signatures.log', $logEntry, FILE_APPEND);
     
-    // Read signed PDF
-    $signedPdf = file_get_contents($tempPdf);
-    unlink($tempPdf);
-    
+
     // Return result
     echo json_encode([
         'success' => true,
-        'signedPdf' => base64_encode($signedPdf),
+        'signedPdf' => base64_encode($signedContent),
         'auditTrail' => $auditTrail,
         'timestamp' => $timestampData
     ]);

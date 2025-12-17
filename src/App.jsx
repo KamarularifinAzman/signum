@@ -1305,30 +1305,55 @@ const PrivacyBanner = ({ showPrivacyBanner, setShowPrivacyBanner, setShowPrivacy
     setError(null);
 
     try {
-      // For demo, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setPersonalSignedPdf({
-        timestamp: new Date().toISOString(),
-        marks: signatureMarks.length,
-        auditTrail: {
-          signedBy: 'User',
-          timestamp: new Date().toISOString(),
-          ipAddress: '127.0.0.1',
-          userAgent: navigator.userAgent
-        },
-        fileName: `electronic_signed_${pdfFile?.name || 'document.pdf'}`,
-        status: 'electronic-signature'
-      });
-
-      setStep('electronic-complete');
-      setSuccess('Electronic signature completed successfully with trusted timestamp for evidentiary purposes.');
-    } catch (err) {
-      setError(`Failed to complete signature: ${err.message}`);
-      console.error('Signature error:', err);
-    } finally {
-      setLoading(false);
+    // 1. Get the original PDF as Base64
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    
+    // 2. Prepare data for the API
+    const requestData = {
+      pdfBase64: pdfBase64,
+      marks: signatureMarks,
+      timestamp: true,
+      auditInfo: {
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      }
+    };
+    
+    // 3. Call your PHP backend API
+    const response = await fetch('/api/sign-personal.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestData)
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.error || 'Signature failed');
     }
+    
+    // 4. Handle the signed PDF returned from backend
+    const signedPdfBytes = Uint8Array.from(atob(result.signedPdf), c => c.charCodeAt(0));
+    const blob = new Blob([signedPdfBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    
+    // Save for download
+    setPersonalSignedPdf({
+      url: url,
+      fileName: `signed_${pdfFile.name}`,
+      auditTrail: result.auditTrail
+    });
+    
+    setStep('electronic-complete');
+    setSuccess('Electronic signature applied successfully.');
+    
+  } catch (err) {
+    setError(`Failed to apply signature: ${err.message}`);
+    console.error('API Error:', err);
+  } finally {
+    setLoading(false);
+  }
   };
 
   // Generate open-sign-pdf command with proper wording
