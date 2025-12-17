@@ -10,12 +10,8 @@
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
-header('Access-Control-Allow-Headers: Content-Type');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
-
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit(0);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
@@ -24,223 +20,239 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $input = json_decode(file_get_contents('php://input'), true);
 
-if (!isset($input['pdfBase64']) || !isset($input['staffName']) || !isset($input['staffNumber'])) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Missing required fields']);
-    exit;
+// Validate required fields
+$required = ['pdfBase64', 'staffName', 'staffNumber', 'marks'];
+foreach ($required as $field) {
+    if (!isset($input[$field])) {
+        http_response_code(400);
+        echo json_encode(['error' => "Missing required field: {$field}"]);
+        exit;
+    }
 }
 
 try {
+    error_log("=== SIGN-COMPANY START ===");
+    
+    // Decode PDF
     $pdfData = base64_decode($input['pdfBase64']);
-    $staffName = $input['staffName'];
-    $staffNumber = $input['staffNumber'];
-    $includeTimestamp = $input['timestamp'] ?? true;
-    
-    // Save temporary PDF
-    $tempPdf = tempnam(sys_get_temp_dir(), 'pdf_');
-    $outputPdf = tempnam(sys_get_temp_dir(), 'signed_pdf_');
-    file_put_contents($tempPdf, $pdfData);
-    
-    // 1. Fetch company certificate from cPanel
-    $certData = fetchCertificateFromCPanel();
-    
-    if (!$certData) {
-        throw new Exception('Failed to retrieve company certificate');
+    if (strlen($pdfData) < 100) {
+        throw new Exception('Invalid PDF data (too small)');
     }
     
-    // Save certificate temporarily
-    $certFile = tempnam(sys_get_temp_dir(), 'cert_');
-    file_put_contents($certFile, $certData['certificate']);
-    
-    // 2. Get certificate password from Windows Credential Manager
-    $certPassword = getCredentialFromWindows('CompanyCertPassword');
-    
-    if (!$certPassword) {
-        throw new Exception('Failed to retrieve certificate password');
+    // Validate PDF signature
+    if (substr($pdfData, 0, 4) !== '%PDF') {
+        throw new Exception('Invalid PDF format');
     }
     
-    // 3. Build open-pdf-sign command
-    $javaPath = 'java'; // Adjust if Java not in PATH
+    // Save to temp file
+    $tempDir = sys_get_temp_dir();
+    $inputFile = tempnam($tempDir, 'input_') . '.pdf';
+    $outputFile = tempnam($tempDir, 'signed_') . '.pdf';
+    
+    file_put_contents($inputFile, $pdfData);
+    error_log("Input PDF saved: {$inputFile}, Size: " . filesize($inputFile));
+    
+    // Get first digital signature mark for positioning
+    $digitalMark = null;
+    foreach ($input['marks'] as $mark) {
+        if ($mark['type'] === 'digital') {
+            $digitalMark = $mark;
+            break;
+        }
+    }
+    
+    if (!$digitalMark) {
+        throw new Exception('No digital signature mark found in document');
+    }
+    
+    // Use local certificate paths (adjust these to your actual paths)
+    $certPath = 'C:/xampp/apache/conf/ssl.crt/fullchain.pem';
+    $keyPath = 'C:/xampp/apache/conf/ssl.key/server.key';
+    
+    if (!file_exists($certPath)) {
+        throw new Exception("Certificate not found at: {$certPath}");
+    }
+    if (!file_exists($keyPath)) {
+        throw new Exception("Private key not found at: {$keyPath}");
+    }
+    
+    error_log("Using certificate: {$certPath}");
+    
+    // Prepare command for open-pdf-sign.jar
+    $javaPath = 'java';
     $jarPath = __DIR__ . '/../lib/open-pdf-sign.jar';
-    $timestampServer = 'http://timestamp.digicert.com';
     
+    if (!file_exists($jarPath)) {
+     error_log("JAR file not found at: " . $jarPath);
+     throw new Exception("open-pdf-sign.jar not found at: " . $jarPath);
+    }
+    
+    // Extract signing info
+    $staffName = escapeshellarg($input['staffName']);
+    $companyName = isset($input['companyName']) ? escapeshellarg($input['companyName']) : escapeshellarg('Your Company');
+    $reason = isset($input['signingReason']) ? escapeshellarg($input['signingReason']) : escapeshellarg('Document signing');
+    $location = isset($input['signingLocation']) ? escapeshellarg($input['signingLocation']) : escapeshellarg('Corporate Headquarters');
+    
+    // Also check Java is available
+    $javaCheck = shell_exec('java -version 2>&1');
+    if (strpos($javaCheck, 'version') === false) {
+        throw new Exception('Java is not installed or not in PATH');
+    }
+
+    // Get position from mark (convert from points to PDF points)
+    $page = intval($digitalMark['page']);
+    $x = intval($digitalMark['x']);
+    $y = intval($digitalMark['y']);
+    $width = intval($digitalMark['width']);
+    $height = intval($digitalMark['height']);
+    
+    // Build command
     $command = sprintf(
-        '%s -jar "%s" -i "%s" -o "%s" -c "%s" -p "%s" -n "%s" -s visible -t "%s"',
-        escapeshellarg($javaPath),
-        escapeshellarg($jarPath),
-        escapeshellarg($tempPdf),
-        escapeshellarg($outputPdf),
-        escapeshellarg($certFile),
-        escapeshellarg($certPassword),
-        escapeshellarg($staffName),
-        $includeTimestamp ? escapeshellarg($timestampServer) : ''
+        '%s -jar "%s" sign --source "%s" --destination "%s" --certificate "%s" --key "%s" --page %d --llx %d --lly %d --urx %d --ury %d --name %s --reason %s --location %s',
+        $javaPath,
+        $jarPath,
+        $inputFile,
+        $outputFile,
+        $certPath,
+        $keyPath,
+        $page,
+        $x,
+        842 - $y - $height, // Adjust Y coordinate (PDF coordinate system)
+        $x + $width,
+        842 - $y, // Adjust Y coordinate
+        $staffName,
+        $reason,
+        $location
     );
     
-    // 4. Execute open-pdf-sign
+    // Add timestamp if requested
+    if (isset($input['includeTimestamp']) && $input['includeTimestamp']) {
+        $command .= ' --tsa http://timestamp.digicert.com';
+    }
+    
+    // Add encryption if requested
+    if (isset($input['finaliseDocument']) && $input['finaliseDocument']) {
+        $command .= ' --encrypt';
+        if (isset($input['password']) && !empty($input['password'])) {
+            $command .= ' --password ' . escapeshellarg($input['password']);
+        }
+    }
+    
+    error_log("Executing command: " . substr($command, 0, 200) . "...");
+    
+    // Execute command
     $output = [];
     $returnCode = 0;
     exec($command . ' 2>&1', $output, $returnCode);
     
+    error_log("Command output: " . implode("\n", $output));
+    
     if ($returnCode !== 0) {
-        throw new Exception('PDF signing failed: ' . implode("\n", $output));
+        throw new Exception('PDF signing failed. Return code: ' . $returnCode . '. Output: ' . implode("\n", $output));
     }
     
-    // 5. Read signed PDF
-    $signedPdf = file_get_contents($outputPdf);
+    if (!file_exists($outputFile)) {
+        throw new Exception('Output file was not created');
+    }
     
-    // 6. Log the signing action
-    $logEntry = [
+    // Read signed PDF
+    $signedPdf = file_get_contents($outputFile);
+    if (!$signedPdf) {
+        throw new Exception('Failed to read signed PDF');
+    }
+    
+    error_log("PDF signed successfully. Output size: " . strlen($signedPdf));
+    
+    // Log the action
+    logCompanySignature([
         'timestamp' => date('Y-m-d H:i:s'),
-        'staff_name' => $staffName,
-        'staff_number' => $staffNumber,
-        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown',
-        'certificate_subject' => $certData['subject'],
+        'staffName' => $input['staffName'],
+        'staffNumber' => $input['staffNumber'],
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
         'success' => true
-    ];
+    ]);
     
-    logCompanySignature($logEntry);
+    // Cleanup temp files
+    unlink($inputFile);
+    unlink($outputFile);
     
-    // 7. Clean up temporary files
-    unlink($tempPdf);
-    unlink($outputPdf);
-    unlink($certFile);
-    
-    // 8. Return result
+    // Return result
     echo json_encode([
         'success' => true,
         'signedPdf' => base64_encode($signedPdf),
+        'fileName' => 'digitally_signed_' . date('Ymd_His') . '.pdf',
         'certificateInfo' => [
-            'subject' => $certData['subject'],
-            'issuer' => $certData['issuer'],
-            'validFrom' => $certData['validFrom'],
-            'validTo' => $certData['validTo']
+            'subject' => 'Company Certificate',
+            'issuer' => 'Your Certificate Authority',
+            'validFrom' => date('Y-m-d'),
+            'validTo' => date('Y-m-d', strtotime('+1 year'))
         ],
-        'timestamp' => date('Y-m-d H:i:s'),
-        'staffName' => $staffName,
-        'staffNumber' => $staffNumber
+        'signatureDetails' => [
+            'staffName' => $input['staffName'],
+            'companyName' => $input['companyName'] ?? 'Your Company',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'page' => $page,
+            'position' => ['x' => $x, 'y' => $y]
+        ]
     ]);
     
 } catch (Exception $e) {
-    // Log error
-    $errorLog = [
-        'timestamp' => date('Y-m-d H:i:s'),
-        'staff_name' => $staffName ?? 'Unknown',
-        'staff_number' => $staffNumber ?? 'Unknown',
-        'error' => $e->getMessage(),
-        'success' => false
-    ];
-    logCompanySignature($errorLog);
+    // Cleanup on error
+    if (isset($inputFile) && file_exists($inputFile)) unlink($inputFile);
+    if (isset($outputFile) && file_exists($outputFile)) unlink($outputFile);
+    
+    error_log("COMPANY SIGN ERROR: " . $e->getMessage());
+    
+    // Log failure
+    if (isset($input['staffName'])) {
+        logCompanySignature([
+            'timestamp' => date('Y-m-d H:i:s'),
+            'staffName' => $input['staffName'],
+            'staffNumber' => $input['staffNumber'] ?? 'Unknown',
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
     
     http_response_code(500);
     echo json_encode([
-        'error' => 'Failed to sign with company certificate: ' . $e->getMessage()
+        'error' => 'Company signature failed: ' . $e->getMessage(),
+        'details' => $e->getTraceAsString()
     ]);
 }
 
 /**
- * Fetch certificate from cPanel API
+ * Log company signature actions
  */
-function fetchCertificateFromCPanel() {
-    // Get cPanel credentials from Windows Credential Manager
-    $cpanelUrl = getCredentialFromWindows('cPanelURL');
-    $cpanelToken = getCredentialFromWindows('cPanelAPIToken');
-    
-    if (!$cpanelUrl || !$cpanelToken) {
-        return null;
-    }
-    
-    // cPanel API v2 - SSL Module
-    $apiUrl = $cpanelUrl . '/execute/SSL/fetch_best_for_domain';
-    $domain = parse_url($cpanelUrl, PHP_URL_HOST);
-    
-    $ch = curl_init($apiUrl . '?domain=' . urlencode($domain));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: cpanel ' . $cpanelToken
-    ]);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode === 200) {
-        $data = json_decode($response, true);
-        
-        if ($data && isset($data['data'])) {
-            $cert = $data['data'];
-            
-            // Parse certificate details
-            $certDetails = openssl_x509_parse($cert['crt']);
-            
-            return [
-                'certificate' => $cert['crt'],
-                'privateKey' => $cert['key'],
-                'subject' => $certDetails['subject']['CN'] ?? 'Unknown',
-                'issuer' => $certDetails['issuer']['CN'] ?? 'Unknown',
-                'validFrom' => date('Y-m-d H:i:s', $certDetails['validFrom_time_t']),
-                'validTo' => date('Y-m-d H:i:s', $certDetails['validTo_time_t'])
-            ];
-        }
-    }
-    
-    return null;
-}
-
-/**
- * Get credential from Windows Credential Manager
- * Uses PowerShell to retrieve stored credentials
- */
-function getCredentialFromWindows($targetName) {
-    // PowerShell command to retrieve credential
-    $psCommand = sprintf(
-        'powershell -Command "$cred = Get-StoredCredential -Target \'%s\'; if ($cred) { $cred.GetNetworkCredential().Password }"',
-        $targetName
-    );
-    
-    $output = shell_exec($psCommand);
-    
-    if ($output) {
-        return trim($output);
-    }
-    
-    return null;
-}
-
-/**
- * Log company signature action
- */
-function logCompanySignature($logEntry) {
-    $logFile = __DIR__ . '/../logs/company-signatures.log';
-    
-    // Ensure log directory exists
-    $logDir = dirname($logFile);
+function logCompanySignature($data) {
+    $logDir = __DIR__ . '/../logs';
     if (!is_dir($logDir)) {
         mkdir($logDir, 0755, true);
     }
     
-    // Format log entry
+    $logFile = $logDir . '/company_signatures.log';
+    $jsonLogFile = $logDir . '/company_signatures.json';
+    
+    // Text log
     $logLine = sprintf(
-        "[%s] Staff: %s (%s) | IP: %s | Success: %s | %s\n",
-        $logEntry['timestamp'],
-        $logEntry['staff_name'],
-        $logEntry['staff_number'],
-        $logEntry['ip_address'],
-        $logEntry['success'] ? 'YES' : 'NO',
-        $logEntry['error'] ?? 'Signed successfully'
+        "[%s] %s (%s) - IP: %s - Success: %s - %s\n",
+        $data['timestamp'],
+        $data['staffName'] ?? 'Unknown',
+        $data['staffNumber'] ?? 'Unknown',
+        $data['ip'] ?? 'Unknown',
+        $data['success'] ? 'YES' : 'NO',
+        $data['error'] ?? 'Signed'
     );
     
     file_put_contents($logFile, $logLine, FILE_APPEND);
     
-    // Also log as JSON for structured parsing
-    $jsonLogFile = __DIR__ . '/../logs/company-signatures.json';
-    $existingLogs = [];
-    
+    // JSON log
+    $jsonLog = [];
     if (file_exists($jsonLogFile)) {
-        $existingLogs = json_decode(file_get_contents($jsonLogFile), true) ?: [];
+        $jsonLog = json_decode(file_get_contents($jsonLogFile), true) ?: [];
     }
     
-    $existingLogs[] = $logEntry;
-    file_put_contents($jsonLogFile, json_encode($existingLogs, JSON_PRETTY_PRINT));
+    $jsonLog[] = $data;
+    file_put_contents($jsonLogFile, json_encode($jsonLog, JSON_PRETTY_PRINT));
 }
-?>

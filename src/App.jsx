@@ -1307,7 +1307,16 @@ const PrivacyBanner = ({ showPrivacyBanner, setShowPrivacyBanner, setShowPrivacy
     try {
     // 1. Get the original PDF as Base64
     const arrayBuffer = await pdfFile.arrayBuffer();
-    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    
+    // Convert ArrayBuffer to Base64 properly
+    let pdfBase64 = '';
+    const bytes = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < bytes.length; i++) {
+      pdfBase64 += String.fromCharCode(bytes[i]);
+    }
+    pdfBase64 = btoa(pdfBase64);
+    
+    console.log("PDF Base64 length:", pdfBase64.length);
     
     // 2. Prepare data for the API
     const requestData = {
@@ -1320,6 +1329,9 @@ const PrivacyBanner = ({ showPrivacyBanner, setShowPrivacyBanner, setShowPrivacy
       }
     };
     
+    // Debug: Log request size
+    console.log("Request data size:", JSON.stringify(requestData).length);
+    
     // 3. Call your PHP backend API
     const response = await fetch('/api/sign-personal.php', {
       method: 'POST',
@@ -1327,11 +1339,24 @@ const PrivacyBanner = ({ showPrivacyBanner, setShowPrivacyBanner, setShowPrivacy
       body: JSON.stringify(requestData)
     });
     
-    const result = await response.json();
+    console.log("Response status:", response.status);
+    
+    // Get response as text first to debug
+    const responseText = await response.text();
+    console.log("Raw response (first 500 chars):", responseText.substring(0, 500));
     
     if (!response.ok) {
-      throw new Error(result.error || 'Signature failed');
+      // Try to parse as JSON for error message
+      try {
+        const errorResult = JSON.parse(responseText);
+        throw new Error(errorResult.error || 'Signature failed');
+      } catch (e) {
+        throw new Error(`Server error: ${response.status} - ${responseText.substring(0, 200)}`);
+      }
     }
+    
+    const result = JSON.parse(responseText);
+    console.log("Signature successful, PDF size:", result.signedPdf ? result.signedPdf.length : 0);
     
     // 4. Handle the signed PDF returned from backend
     const signedPdfBytes = Uint8Array.from(atob(result.signedPdf), c => c.charCodeAt(0));
