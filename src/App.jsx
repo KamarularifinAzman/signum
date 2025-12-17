@@ -1470,38 +1470,32 @@ const PrivacyBanner = ({ showPrivacyBanner, setShowPrivacyBanner, setShowPrivacy
   const handleDownload = async (type) => {
     try {
       if (type === 'electronic' && personalSignedPdf?.fileName) {
-        // Simulate download for electronic signature
-        const link = document.createElement('a');
-        link.download = personalSignedPdf.fileName;
-        
-        // Create a dummy PDF file for demo
-        const pdfContent = '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n...';
-        const blob = new Blob([pdfContent], { type: 'application/pdf' });
-        link.href = URL.createObjectURL(blob);
-        link.click();
-      } else if (type === 'pki' && companySignedPdf?.fileName) {
-        // Show the command that would be executed
-        alert(
-          `Digital Signature Configuration Applied\n\n` +
-          `Status: ${companySignedPdf.statusBanner}\n\n` +
-          `Document saved as: ${companySignedPdf.fileName}`
-        );
-        
-        // Simulate download
-        const link = document.createElement('a');
-        link.download = companySignedPdf.fileName;
-        
-        // Create a dummy PDF file for demo
-        const pdfContent = '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n...';
-        const blob = new Blob([pdfContent], { type: 'application/pdf' });
-        link.href = URL.createObjectURL(blob);
-        link.click();
-      }
-    } catch (err) {
-      setError('Failed to download file. Please try again.');
-      console.error('Download error:', err);
+      // Download actual signed PDF from URL
+      const link = document.createElement('a');
+      link.href = personalSignedPdf.url;
+      link.download = personalSignedPdf.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Revoke the blob URL after download
+      setTimeout(() => URL.revokeObjectURL(personalSignedPdf.url), 100);
+      
+    } else if (type === 'pki' && companySignedPdf?.fileName) {
+      // For PKI, this is a demo - show the command
+      alert(
+        `Digital Signature Configuration Applied\n\n` +
+        `Status: ${companySignedPdf.statusBanner}\n\n` +
+        `To actually sign the PDF, run this command on your server:\n\n` +
+        `${companySignedPdf.openSignPdfCommand}\n\n` +
+        `Document would be saved as: ${companySignedPdf.fileName}`
+      );
     }
-  };
+  } catch (err) {
+    setError('Failed to download file: ' + err.message);
+    console.error('Download error:', err);
+  }
+};
 
   // Reset application
   const resetApp = () => {

@@ -9,8 +9,8 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use TCPDF;
-use TCPDF_IMPORT;
+// Use FPDI which extends TCPDF
+use setasign\Fpdi\Tcpdf\Fpdi;
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -41,12 +41,18 @@ try {
     $marks = $input['marks'];
     $includeTimestamp = $input['timestamp'] ?? true;
     
-    // Save uploaded PDF temporarily
-    $tempPdf = tempnam(sys_get_temp_dir(), 'upload_');
-    file_put_contents($tempPdf, $pdfData);
+    if (!$pdfData || strlen($pdfData) < 100) {
+        throw new Exception('Invalid PDF data received');
+    }
     
-    // Create new PDF using TCPDF
-    $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+    // Save uploaded PDF temporarily
+    $tempPdf = tempnam(sys_get_temp_dir(), 'upload_') . '.pdf';
+    if (file_put_contents($tempPdf, $pdfData) === false) {
+        throw new Exception('Failed to save temporary PDF file');
+    }
+    
+    // Create FPDI instance (extends TCPDF)
+    $pdf = new Fpdi();
     
     // Set document information
     $pdf->SetCreator('Signum Document Signing Platform');
@@ -63,15 +69,10 @@ try {
     $pdf->SetMargins(0, 0, 0);
     
     // Get page count from original PDF
-    try {
-        // Try to import pages using TCPDF_IMPORT if available
-        $pageCount = $pdf->setSourceFile($tempPdf);
-        $useImport = true;
-    } catch (Exception $e) {
-        // If import fails, we'll overlay on blank pages
-        // Get page count by parsing PDF
-        $pageCount = getPageCount($pdfData);
-        $useImport = false;
+    $pageCount = $pdf->setSourceFile($tempPdf);
+    
+    if ($pageCount < 1) {
+        throw new Exception('Invalid PDF: No pages found');
     }
     
     // Group marks by page
@@ -86,21 +87,16 @@ try {
     
     // Process each page
     for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-        if ($useImport) {
-            // Import page from original PDF
-            $tplId = $pdf->importPage($pageNo);
-            $size = $pdf->getTemplateSize($tplId);
-            
-            // Add page with correct size
-            $orientation = ($size['width'] > $size['height']) ? 'L' : 'P';
-            $pdf->AddPage($orientation, [$size['width'], $size['height']]);
-            
-            // Use imported page as background
-            $pdf->useTemplate($tplId, 0, 0, $size['width'], $size['height']);
-        } else {
-            // Add blank A4 page if import not available
-            $pdf->AddPage();
-        }
+        // Import page from original PDF
+        $tplId = $pdf->importPage($pageNo);
+        $size = $pdf->getTemplateSize($tplId);
+        
+        // Add page with correct size
+        $orientation = ($size['width'] > $size['height']) ? 'L' : 'P';
+        $pdf->AddPage($orientation, [$size['width'], $size['height']]);
+        
+        // Use imported page as background
+        $pdf->useTemplate($tplId, 0, 0, $size['width'], $size['height']);
         
         // Apply marks for this page
         if (isset($marksByPage[$pageNo])) {
@@ -114,13 +110,17 @@ try {
     if ($includeTimestamp) {
         $timestampData = getTimestampData($tempPdf);
         addAuditPage($pdf, $marks, $timestampData);
+    } else {
+        $timestampData = null;
     }
     
     // Output PDF as string
     $signedContent = $pdf->Output('signed.pdf', 'S');
     
     // Clean up temporary file
-    unlink($tempPdf);
+    if (file_exists($tempPdf)) {
+        unlink($tempPdf);
+    }
     
     // Generate audit trail
     $auditTrail = [
@@ -140,14 +140,21 @@ try {
         'success' => true,
         'signedPdf' => base64_encode($signedContent),
         'auditTrail' => $auditTrail,
-        'timestamp' => $timestampData ?? null
+        'timestamp' => $timestampData
     ]);
     
 } catch (Exception $e) {
+    // Clean up on error
+    if (isset($tempPdf) && file_exists($tempPdf)) {
+        unlink($tempPdf);
+    }
+    
+    error_log('Sign-personal error: ' . $e->getMessage());
+    
     http_response_code(500);
     echo json_encode([
         'error' => 'Failed to process signature: ' . $e->getMessage(),
-        'trace' => $e->getTraceAsString()
+        'details' => $e->getTraceAsString()
     ]);
 }
 
@@ -155,62 +162,70 @@ try {
  * Apply a signature mark to the PDF
  */
 function applyMark($pdf, $mark) {
-    $x = $mark['x'];
-    $y = $mark['y'];
-    $width = $mark['width'];
-    $height = $mark['height'];
-    
-    if ($mark['type'] === 'signature' || $mark['type'] === 'initial') {
-        // Add signature/initial image
-        if (isset($mark['image'])) {
-            // Decode base64 image
-            $imageData = $mark['image'];
-            if (preg_match('/^data:image\/(\w+);base64,(.+)$/', $imageData, $matches)) {
-                $imageType = strtolower($matches[1]);
-                $imageBase64 = $matches[2];
-                
-                // Save image temporarily
-                $tempImage = tempnam(sys_get_temp_dir(), 'sig_') . '.' . $imageType;
-                file_put_contents($tempImage, base64_decode($imageBase64));
-                
-                // Add image to PDF at specified position
-                $pdf->Image($tempImage, $x, $y, $width, $height, '', '', '', false, 300, '', false, false, 0);
-                
-                // Clean up
-                unlink($tempImage);
+    try {
+        $x = floatval($mark['x']);
+        $y = floatval($mark['y']);
+        $width = floatval($mark['width']);
+        $height = floatval($mark['height']);
+        
+        if ($mark['type'] === 'signature' || $mark['type'] === 'initial') {
+            // Add signature/initial image
+            if (isset($mark['image']) && !empty($mark['image'])) {
+                // Decode base64 image
+                $imageData = $mark['image'];
+                if (preg_match('/^data:image\/(\w+);base64,(.+)$/', $imageData, $matches)) {
+                    $imageType = strtolower($matches[1]);
+                    $imageBase64 = $matches[2];
+                    
+                    // Map image type
+                    $extension = $imageType === 'jpeg' ? 'jpg' : $imageType;
+                    
+                    // Save image temporarily
+                    $tempImage = tempnam(sys_get_temp_dir(), 'sig_') . '.' . $extension;
+                    if (file_put_contents($tempImage, base64_decode($imageBase64)) !== false) {
+                        // Add image to PDF at specified position
+                        $pdf->Image($tempImage, $x, $y, $width, $height, strtoupper($imageType), '', '', false, 300, '', false, false, 0);
+                        
+                        // Clean up
+                        unlink($tempImage);
+                    }
+                }
             }
+        } elseif ($mark['type'] === 'text') {
+            // Add text annotation
+            $fontSize = isset($mark['fontSize']) ? intval($mark['fontSize']) : 12;
+            $pdf->SetFont('helvetica', '', $fontSize);
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->SetXY($x, $y);
+            $pdf->Write(0, $mark['text'], '', false, '', false, 0, false);
+            
+        } elseif ($mark['type'] === 'digital') {
+            // Add digital signature visual placeholder
+            $pdf->SetFillColor(220, 252, 231);
+            $pdf->Rect($x, $y, $width, $height, 'DF');
+            
+            $pdf->SetDrawColor(22, 163, 74);
+            $pdf->SetLineWidth(0.5);
+            $pdf->Rect($x, $y, $width, $height, 'D');
+            
+            $pdf->SetFont('helvetica', 'B', 10);
+            $pdf->SetTextColor(21, 128, 61);
+            
+            // Center text in box
+            $pdf->SetXY($x, $y + 5);
+            $pdf->Cell($width, 5, 'ELECTRONICALLY SIGNED', 0, 0, 'C');
+            
+            if (isset($mark['digitalData']['staffName'])) {
+                $pdf->SetFont('helvetica', '', 8);
+                $pdf->SetXY($x, $y + 12);
+                $pdf->Cell($width, 4, 'By: ' . $mark['digitalData']['staffName'], 0, 0, 'C');
+            }
+            
+            $pdf->SetXY($x, $y + 18);
+            $pdf->Cell($width, 4, 'Date: ' . date('Y-m-d H:i:s'), 0, 0, 'C');
         }
-    } elseif ($mark['type'] === 'text') {
-        // Add text annotation
-        $pdf->SetFont('helvetica', '', $mark['fontSize'] ?? 12);
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetXY($x, $y);
-        $pdf->Write(0, $mark['text'], '', false, '', false, 0, false);
-        
-    } elseif ($mark['type'] === 'digital') {
-        // Add digital signature visual placeholder
-        $pdf->SetFillColor(220, 252, 231);
-        $pdf->Rect($x, $y, $width, $height, 'DF');
-        
-        $pdf->SetDrawColor(22, 163, 74);
-        $pdf->SetLineWidth(0.5);
-        $pdf->Rect($x, $y, $width, $height, 'D');
-        
-        $pdf->SetFont('helvetica', 'B', 10);
-        $pdf->SetTextColor(21, 128, 61);
-        
-        // Center text in box
-        $pdf->SetXY($x, $y + 5);
-        $pdf->Cell($width, 5, 'ELECTRONICALLY SIGNED', 0, 0, 'C');
-        
-        if (isset($mark['digitalData']['staffName'])) {
-            $pdf->SetFont('helvetica', '', 8);
-            $pdf->SetXY($x, $y + 12);
-            $pdf->Cell($width, 4, 'By: ' . $mark['digitalData']['staffName'], 0, 0, 'C');
-        }
-        
-        $pdf->SetXY($x, $y + 18);
-        $pdf->Cell($width, 4, 'Date: ' . date('Y-m-d H:i:s'), 0, 0, 'C');
+    } catch (Exception $e) {
+        error_log('Error applying mark: ' . $e->getMessage());
     }
 }
 
@@ -223,15 +238,20 @@ function addAuditPage($pdf, $marks, $timestampData) {
     // Title
     $pdf->SetFont('helvetica', 'B', 16);
     $pdf->SetTextColor(0, 0, 0);
+    $pdf->SetXY(10, 10);
     $pdf->Cell(0, 15, 'Document Audit Trail', 0, 1, 'C');
     
     $pdf->Ln(5);
     
     // Audit information
     $pdf->SetFont('helvetica', '', 11);
+    $pdf->SetX(10);
     $pdf->Cell(0, 8, 'Signature Timestamp: ' . date('Y-m-d H:i:s T'), 0, 1);
+    $pdf->SetX(10);
     $pdf->Cell(0, 8, 'IP Address: ' . ($_SERVER['REMOTE_ADDR'] ?? 'Unknown'), 0, 1);
-    $pdf->Cell(0, 8, 'User Agent: ' . substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 80), 0, 1);
+    $pdf->SetX(10);
+    $pdf->MultiCell(0, 8, 'User Agent: ' . substr($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown', 0, 80), 0, 'L');
+    $pdf->SetX(10);
     $pdf->Cell(0, 8, 'Signature Elements Placed: ' . count($marks), 0, 1);
     
     $pdf->Ln(5);
@@ -239,13 +259,18 @@ function addAuditPage($pdf, $marks, $timestampData) {
     // Timestamp authority info
     if ($timestampData) {
         $pdf->SetFont('helvetica', 'B', 12);
+        $pdf->SetX(10);
         $pdf->Cell(0, 8, 'Trusted Timestamp Authority', 0, 1);
         
         $pdf->SetFont('helvetica', '', 10);
+        $pdf->SetX(10);
         $pdf->Cell(0, 6, 'Authority: ' . $timestampData['authority'], 0, 1);
+        $pdf->SetX(10);
         $pdf->Cell(0, 6, 'Hash Algorithm: ' . $timestampData['algorithm'], 0, 1);
+        $pdf->SetX(10);
         $pdf->Cell(0, 6, 'Document Hash:', 0, 1);
         $pdf->SetFont('courier', '', 8);
+        $pdf->SetX(10);
         $pdf->MultiCell(0, 5, wordwrap($timestampData['hash'], 80, "\n", true), 0, 'L');
     }
     
@@ -254,6 +279,7 @@ function addAuditPage($pdf, $marks, $timestampData) {
     // Legal notice
     $pdf->SetFont('helvetica', 'I', 9);
     $pdf->SetTextColor(100, 100, 100);
+    $pdf->SetX(10);
     $pdf->MultiCell(0, 5, 
         'This document has been electronically signed. Electronic signatures are recognized under applicable electronic commerce legislation. ' .
         'The timestamp and audit information above provide evidence of the signing event.',
@@ -303,16 +329,6 @@ function getTimestampData($pdfPath) {
 }
 
 /**
- * Get page count from PDF
- */
-function getPageCount($pdfData) {
-    // Simple regex to count /Type /Page occurrences
-    // This is a fallback method and may not be 100% accurate for all PDFs
-    preg_match_all('/\/Type\s*\/Page[^s]/', $pdfData, $matches);
-    return max(1, count($matches[0]));
-}
-
-/**
  * Log signature to file
  */
 function logSignature($marks, $auditTrail) {
@@ -336,7 +352,8 @@ function logSignature($marks, $auditTrail) {
     $existingLogs = [];
     
     if (file_exists($jsonLogFile)) {
-        $existingLogs = json_decode(file_get_contents($jsonLogFile), true) ?: [];
+        $content = file_get_contents($jsonLogFile);
+        $existingLogs = json_decode($content, true) ?: [];
     }
     
     $existingLogs[] = array_merge($auditTrail, ['marks' => count($marks)]);
